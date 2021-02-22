@@ -1,0 +1,32 @@
+function init(self)
+	self.scale = go.get_scale()
+	self.radius = 20 + math.random(80)
+	self.speed = 1 + math.random(2)
+	self.y = math.random(-250, 250)
+	self.t = 0
+	self.id = go.get_id()
+
+	local scale = math.random(1, 2) / 1.5
+	go.animate(self.id, "scale.y", go.PLAYBACK_LOOP_PINGPONG, self.scale.y/1.15, go.EASING_LINEAR, 1)
+end
+
+function update(self, dt)
+	self.t = self.t + dt
+	
+	local dy = math.cos(self.t * self.speed) * self.radius
+	local pos = vmath.vector3()
+	pos.x = go.get_position().x + self.speed
+	pos.y = self.y + dy
+	go.set_position(pos)	
+
+	if go.get_position().x > 550 then		
+		for _,v in pairs(bubbles) do
+			if self.id == bubbles[_] then
+				table.remove(bubbles, _)
+				go.delete(self.id)
+				break
+			end
+		end
+	end
+end
+

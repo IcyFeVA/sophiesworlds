@@ -1,0 +1,54 @@
+[project]
+title = SophiesWorlds
+publisher = Mikroleap
+developer = Mikroleap
+dependencies = https://github.com/rgrams/rendercam/archive/v1.0.1.zip,https://github.com/britzl/defold-input/archive/master.zip,https://github.com/britzl/gooey/archive/master.zip
+
+[bootstrap]
+main_collection = /gameBubbles/gameBubbles.collectionc
+render = /rendercam/rendercam.renderc
+
+[input]
+game_binding = /input/game.input_bindingc
+use_accelerometer = 0
+
+[display]
+width = 960
+height = 540
+high_dpi = 0
+dynamic_orientation = 1
+fullscreen = 0
+display_profiles = /builtins/render/default.display_profilesc
+
+[ios]
+app_icon_120x120 = /assets/app_icons/icon_120.png
+app_icon_180x180 = /assets/app_icons/icon_180.png
+app_icon_76x76 = /assets/app_icons/icon_76.png
+app_icon_152x152 = /assets/app_icons/icon_152.png
+app_icon_57x57 = /assets/app_icons/icon_57.png
+app_icon_114x114 = /assets/app_icons/icon_114.png
+app_icon_72x72 = /assets/app_icons/icon_72.png
+app_icon_144x144 = /assets/app_icons/icon_144.png
+app_icon_167x167 = /assets/app_icons/icon_167.png
+bundle_identifier = com.example.todo
+
+[osx]
+bundle_identifier = com.example.todo
+
+[android]
+app_icon_36x36 = /assets/app_icons/icon_36.png
+app_icon_48x48 = /assets/app_icons/icon_48.png
+app_icon_72x72 = /assets/app_icons/icon_72.png
+app_icon_96x96 = /assets/app_icons/icon_96.png
+app_icon_144x144 = /assets/app_icons/icon_144.png
+app_icon_192x192 = /assets/app_icons/icon_192.png
+input_method = HiddenInputField
+display_cutout = 0
+
+[script]
+shared_state = 1
+
+[physics]
+gravity_y = -1000.0
+scale = 0.01
+
