@@ -23,8 +23,8 @@ instances {
   id: "sunRays"
   prototype: "/gameBubbles/sunRays.go"
   position {
-    x: -33.0
-    y: 0.0
+    x: 281.0
+    y: 38.0
     z: 0.0
   }
   rotation {
@@ -101,11 +101,6 @@ embedded_instances {
   "    value: \"true\"\n"
   "    type: PROPERTY_TYPE_BOOLEAN\n"
   "  }\n"
-  "  properties {\n"
-  "    id: \"fixedHeight\"\n"
-  "    value: \"false\"\n"
-  "    type: PROPERTY_TYPE_BOOLEAN\n"
-  "  }\n"
   "}\n"
   ""
   position {
@@ -131,7 +126,7 @@ embedded_instances {
   "  id: \"bg\"\n"
   "  type: \"sprite\"\n"
   "  data: \"tile_set: \\\"/gameBubbles/Game_Bubbles.atlas\\\"\\n"
-  "default_animation: \\\"EnvOcean\\\"\\n"
+  "default_animation: \\\"EnvSquareOcean\\\"\\n"
   "material: \\\"/builtins/materials/sprite.material\\\"\\n"
   "blend_mode: BLEND_MODE_ALPHA\\n"
   "\"\n"

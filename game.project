@@ -16,7 +16,6 @@ use_accelerometer = 0
 width = 960
 height = 540
 high_dpi = 0
-dynamic_orientation = 1
 fullscreen = 0
 display_profiles = /builtins/render/default.display_profilesc
 
