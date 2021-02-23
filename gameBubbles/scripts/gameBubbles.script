@@ -7,8 +7,12 @@ function init(self)
 	
 	lastTouchPos = vmath.vector3()
 
+	wx, wy = window.get_size()
+
 	particlefx.play('/groundBubbles')
 	particlefx.play('/sunRays')	
+
+	print(self.wx, self.wy)
 end
 
 function final(self)

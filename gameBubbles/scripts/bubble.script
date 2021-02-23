@@ -1,7 +1,14 @@
 function init(self)
-	self.radius = 20 + math.random(80)
-	self.speed = 1 + math.random(2)
-	self.y = math.random(-250, 250)
+	self.radius = 20 + math.random(80) -- amount of y-swing
+	self.speed = 100 + math.random(200)
+
+	wx, wy = window.get_size()
+	self.ratioY = 540 / wy
+	self.maxY = wy * self.ratioY
+	self.maxYPos = self.maxY * self.ratioY
+	self.maxYPos = self.maxYPos + (self.maxYPos / 5)
+	self.y = math.random(-self.maxYPos * self.ratioY, self.maxYPos * self.ratioY)
+	
 	self.t = 0
 	self.id = go.get_id()
 
@@ -12,9 +19,9 @@ end
 function update(self, dt)
 	self.t = self.t + dt
 	
-	local dy = math.cos(self.t * self.speed) * self.radius
+	local dy = math.cos(self.t * self.speed / 70) * self.radius
 	local pos = vmath.vector3()
-	pos.x = go.get_position().x + self.speed
+	pos.x = go.get_position().x + self.speed * dt
 	pos.y = self.y + dy
 	go.set_position(pos)	
 
