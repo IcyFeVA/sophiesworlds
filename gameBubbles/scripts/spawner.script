@@ -6,7 +6,7 @@ end
 function update(self, dt)
 	if tablelength(bubbles) <= maxBubbles then
 		local rnd = math.random()
-		if rnd < 0.03 then
+		if rnd < 0.04 then
 			local pos = go.get_position()
 			local bubble_id = factory.create("#bubble_factory", pos, nil, nil, math.random(1,2)/1.5)			
 			table.insert(bubbles, bubble_id)

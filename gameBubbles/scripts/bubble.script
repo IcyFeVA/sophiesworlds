@@ -1,18 +1,17 @@
+local data = require("main.data")
+
+
 function init(self)
 	self.radius = 20 + math.random(80) -- amount of y-swing
 	self.speed = 100 + math.random(200)
 
-	wx, wy = window.get_size()
-	self.ratioY = 540 / wy
-	self.maxY = wy * self.ratioY
-	self.maxYPos = self.maxY * self.ratioY
-	self.maxYPos = self.maxYPos + (self.maxYPos / 5)
-	self.y = math.random(-self.maxYPos * self.ratioY, self.maxYPos * self.ratioY)
-	
+	local range = (data.SH / 2) * 0.9	-- y should be within 90% view height
+	self.y = math.random(-range, range)
 	self.t = 0
 	self.id = go.get_id()
 
 	go.set_scale(math.random(10, 20) / 13)
+	
 	go.animate(self.id, "scale.y", go.PLAYBACK_LOOP_PINGPONG, go.get_scale().y/1.15, go.EASING_LINEAR, 1)
 end
 
