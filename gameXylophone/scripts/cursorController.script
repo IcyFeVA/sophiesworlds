@@ -1,4 +1,5 @@
 local cursor = require "in.cursor"
+local pressing = false
 
 local sounds = {
 	[hash('note1')] = "/soundfx#note1",
@@ -30,14 +31,16 @@ end
 
 function on_message(self, message_id, message, sender)
 	if message_id == cursor.OVER then
-		--print("Cursor over", message.id, message.group, message.x, message.y)
+		if pressing then
+			sound.play(sounds[message.group])
+		end
 	elseif message_id == cursor.OUT then
 		--print("Cursor out", message.id, message.group, message.x, message.y)
 	elseif message_id == cursor.PRESSED then
+		pressing = true
 		sound.play(sounds[message.group])
-		--print("Pressed", message.id, message.group, message.x, message.y)
 	elseif message_id == cursor.RELEASED then
-		--print("Released", message.id, message.group, message.x, message.y)
+		pressing = false
 	elseif message_id == cursor.CLICKED then
 		--print("Clicked", message.id, message.group, message.x, message.y)
 	elseif message_id == cursor.DRAG_START then

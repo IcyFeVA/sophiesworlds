@@ -14,7 +14,7 @@ emitters {
     z: 0.0
     w: 1.0
   }
-  tile_source: "/gameBubbles/Game_Bubbles.atlas"
+  tile_source: "/gameBubbles/gameBubbles.atlas"
   animation: "bubble"
   material: "/builtins/materials/particlefx.material"
   blend_mode: BLEND_MODE_ALPHA

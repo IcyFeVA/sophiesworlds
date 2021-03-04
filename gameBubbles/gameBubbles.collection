@@ -1,7 +1,7 @@
 name: "gameBubbles"
 instances {
   id: "groundBubbles"
-  prototype: "/gameBubbles/groundBubbles.go"
+  prototype: "/gameBubbles/go/groundBubbles.go"
   position {
     x: 0.0
     y: 0.0
@@ -21,7 +21,7 @@ instances {
 }
 instances {
   id: "sunRays"
-  prototype: "/gameBubbles/sunRays.go"
+  prototype: "/gameBubbles/go/sunRays.go"
   position {
     x: 281.0
     y: 38.0
@@ -125,7 +125,7 @@ embedded_instances {
   data: "embedded_components {\n"
   "  id: \"bg\"\n"
   "  type: \"sprite\"\n"
-  "  data: \"tile_set: \\\"/gameBubbles/Game_Bubbles.atlas\\\"\\n"
+  "  data: \"tile_set: \\\"/gameBubbles/gameBubbles.atlas\\\"\\n"
   "default_animation: \\\"EnvSquareOcean\\\"\\n"
   "material: \\\"/builtins/materials/sprite.material\\\"\\n"
   "blend_mode: BLEND_MODE_ALPHA\\n"
@@ -180,7 +180,7 @@ embedded_instances {
   "embedded_components {\n"
   "  id: \"bubble_factory\"\n"
   "  type: \"factory\"\n"
-  "  data: \"prototype: \\\"/gameBubbles/bubble.go\\\"\\n"
+  "  data: \"prototype: \\\"/gameBubbles/go/bubble.go\\\"\\n"
   "load_dynamically: false\\n"
   "\"\n"
   "  position {\n"
@@ -217,7 +217,7 @@ embedded_instances {
   id: "level"
   data: "components {\n"
   "  id: \"gameBubbles\"\n"
-  "  component: \"/gameBubbles/scripts/gameBubbles.script\"\n"
+  "  component: \"/gameBubbles/scripts/controller.script\"\n"
   "  position {\n"
   "    x: 0.0\n"
   "    y: 0.0\n"
@@ -288,7 +288,7 @@ embedded_instances {
   "embedded_components {\n"
   "  id: \"particle_factory\"\n"
   "  type: \"factory\"\n"
-  "  data: \"prototype: \\\"/gameBubbles/bubblePop.go\\\"\\n"
+  "  data: \"prototype: \\\"/gameBubbles/go/bubblePop.go\\\"\\n"
   "load_dynamically: false\\n"
   "\"\n"
   "  position {\n"
