@@ -1,0 +1,52 @@
+local cursor = require "in.cursor"
+
+function init(self)
+	if not go.get("#cursor", "acquire_input_focus") then
+		self.forward_input = true
+		msg.post(".", "acquire_input_focus")
+	end
+end
+
+function on_input(self, action_id, action)
+	local rendercam = require "rendercam.rendercam"
+	local s2w = rendercam.screen_to_world_2d(action.screen_x, action.screen_y)
+	action.x = s2w.x
+	action.y = s2w.y
+	
+	if self.forward_input then
+		msg.post("#cursor", "input", { action_id = action_id, action = action })
+	end
+end
+
+local sounds = {
+	[hash('note1')] = "/soundfx#note1",
+	[hash('note2')] = "/soundfx#note2",
+	[hash('note3')] = "/soundfx#note3",
+	[hash('note4')] = "/soundfx#note4",
+	[hash('note5')] = "/soundfx#note5",
+	[hash('note6')] = "/soundfx#note6",
+	[hash('note7')] = "/soundfx#note7"
+}
+
+function on_message(self, message_id, message, sender)
+	if message_id == cursor.OVER then
+		print("Cursor over", message.id, message.group, message.x, message.y)
+	elseif message_id == cursor.OUT then
+		--print("Cursor out", message.id, message.group, message.x, message.y)
+	elseif message_id == cursor.PRESSED then
+		sound.play(sounds[message.group])
+		--print("Pressed", message.id, message.group, message.x, message.y)
+	elseif message_id == cursor.RELEASED then
+		--print("Released", message.id, message.group, message.x, message.y)
+	elseif message_id == cursor.CLICKED then
+		--print("Clicked", message.id, message.group, message.x, message.y)
+	elseif message_id == cursor.DRAG_START then
+		--print("Drag started", message.id, message.group, message.x, message.y)
+	elseif message_id == cursor.DRAG_END then
+		--print("Drag ended", message.id, message.group, message.x, message.y)
+	end
+
+	if message_id == hash("collision_response") then
+		print("I collided with", message.other_id)
+	end
+end
