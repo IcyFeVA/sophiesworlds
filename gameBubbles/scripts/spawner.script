@@ -1,10 +1,12 @@
+local data = require "main.data"
+
 function init(self)
 	bubbles = {}
 	maxBubbles = 5
 end
 
 function update(self, dt)
-	if tablelength(bubbles) <= maxBubbles then
+	if data.tablelength(bubbles) <= maxBubbles then
 		local rnd = math.random()
 		if rnd < 0.04 then
 			local pos = go.get_position()

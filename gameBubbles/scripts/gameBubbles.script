@@ -1,5 +1,7 @@
 math.randomseed(os.time())
 
+local data = require "main.data"
+
 function init(self)
 	msg.post(".", "acquire_input_focus")
 
@@ -46,18 +48,8 @@ function on_reload(self)
 	
 end
 
-function tablelength(T)
-	local count = 0
-	for k,v in pairs(T) do
-		if v then
-			count = count + 1 
-		end 
-	end
-	return count
-end
-
 function deleteBubble(tapPos)
-	for i=0, tablelength(bubbles) do
+	for i=0, data.tablelength(bubbles) do
 		if bubbles[i] then
 			local stow = rendercam.screen_to_world_2d(tapPos.screen_x, tapPos.screen_y)
 			local bble = bubbles[i]
