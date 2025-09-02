@@ -1,20 +1,32 @@
 function init(self)
-	particles = {}
+	self.particleTimers = {}
 end
 
 function final(self)
-	-- Add finalization code here
-	-- Learn more: https://defold.com/manuals/script/
-	-- Remove this function if not needed
+	-- Clean up any remaining timers
+	for _, timer_id in pairs(self.particleTimers) do
+		timer.cancel(timer_id)
+	end
 end
 
 function on_message(self, message_id, message, sender)
-	local particles_id = factory.create("#particle_factory", lastTouchPos)	
+	local particles_id = factory.create("#particle_factory", lastTouchPos)
 	particlefx.play(particles_id)
 	
 	local function deleteParticles()
 		go.delete(particles_id)
+		-- Remove timer from tracking
+		for id, timer_id in pairs(self.particleTimers) do
+			if timer_id == _G.current_timer then
+				self.particleTimers[id] = nil
+				break
+			end
+		end
 	end
-	t = timer.delay(0.3, false, deleteParticles)
+	
+	-- Store timer reference for cleanup
+	local timer_id = timer.delay(0.3, false, deleteParticles)
+	table.insert(self.particleTimers, timer_id)
+	_G.current_timer = timer_id
 end
 

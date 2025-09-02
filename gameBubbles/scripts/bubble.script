@@ -4,34 +4,34 @@ local data = require("main.data")
 function init(self)
 	self.radius = 20 + math.random(80) -- amount of y-swing
 	self.speed = 100 + math.random(200)
+	self.start_x = go.get_position().x
 
 	local range = (data.SH / 2) * 0.9	-- y should be within 90% view height
 	self.y = math.random(-range, range)
 	self.t = 0
 	self.id = go.get_id()
 
-	go.set_scale(math.random(10, 20) / 13)
+	local scale = math.random(10, 20) / 13
+	go.set_scale(scale)
 	
-	go.animate(self.id, "scale.y", go.PLAYBACK_LOOP_PINGPONG, go.get_scale().y/1.15, go.EASING_LINEAR, 1)
+	-- More efficient scale animation
+	go.animate(self.id, "scale.y", go.PLAYBACK_LOOP_PINGPONG, scale/1.15, go.EASING_LINEAR, 1)
 end
 
 function update(self, dt)
 	self.t = self.t + dt
 	
 	local dy = math.cos(self.t * self.speed / 70) * self.radius
-	local pos = vmath.vector3()
-	pos.x = go.get_position().x + self.speed * dt
+	local pos = go.get_position()
+	pos.x = self.start_x + (self.t * self.speed)
 	pos.y = self.y + dy
-	go.set_position(pos)	
+	go.set_position(pos)
 
-	if go.get_position().x > 550 then		
-		for _,v in pairs(bubbles) do
-			if self.id == bubbles[_] then
-				table.remove(bubbles, _)
-				go.delete(self.id)
-				break
-			end
-		end
+	-- More efficient boundary check
+	if pos.x > 550 then
+		-- Send message to spawner to remove this bubble from tracking
+		msg.post("/spawner#spawner", "remove_bubble", {id = self.id})
+		go.delete(self.id)
 	end
 end
 

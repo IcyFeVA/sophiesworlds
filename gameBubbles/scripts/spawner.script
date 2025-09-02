@@ -1,17 +1,41 @@
 local data = require "main.data"
 
 function init(self)
-	bubbles = {}
-	maxBubbles = 5
+	-- Initialize global bubbles table if it doesn't exist
+	if not bubbles then
+		bubbles = {}
+	end
+	-- Make sure both point to the same table
+	self.bubbles = bubbles
+	self.maxBubbles = 5
+	self.spawnTimer = 0
+	self.spawnInterval = 0.1  -- Spawn every 0.1 seconds instead of random check
 end
 
 function update(self, dt)
-	if data.tablelength(bubbles) <= maxBubbles then
-		local rnd = math.random()
-		if rnd < 0.04 then
-			local pos = go.get_position()
-			local bubble_id = factory.create("#bubble_factory", pos, nil, nil, math.random(1,2)/1.5)			
-			table.insert(bubbles, bubble_id)
+	self.spawnTimer = self.spawnTimer + dt
+	
+	-- More consistent spawn rate
+	if self.spawnTimer >= self.spawnInterval and #self.bubbles <= self.maxBubbles then
+		self.spawnTimer = 0
+		
+		local pos = go.get_position()
+		local bubble_id = factory.create("#bubble_factory", pos, nil, nil, math.random(1,2)/1.5)
+		table.insert(self.bubbles, bubble_id)
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("remove_bubble") then
+		-- More efficient removal using index
+		for i, bubble_id in ipairs(self.bubbles) do
+			if bubble_id == message.id then
+				table.remove(self.bubbles, i)
+				break
+			end
 		end
+	elseif message_id == hash("get_bubbles_list") then
+		-- Send the bubbles list back to the requester
+		msg.post(sender, "bubbles_list", {bubbles = self.bubbles})
 	end
 end

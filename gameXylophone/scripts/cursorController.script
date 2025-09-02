@@ -1,5 +1,8 @@
 local cursor = require "in.cursor"
-local pressing = false
+
+-- Per-pointer state
+local pressing = {}      -- pressing[pointer_id] = true when that pointer is pressing
+local last_played = {}   -- last_played[pointer_id] = message.id of last played target for that pointer
 
 local sounds = {
 	[hash('note1')] = "/soundfx#note1",
@@ -12,44 +15,85 @@ local sounds = {
 }
 
 function init(self)
-	if not go.get("#cursor", "acquire_input_focus") then
-		self.forward_input = true
-		msg.post(".", "acquire_input_focus")
-	end
+	-- Acquire input focus on this GO so on_input receives events
+	msg.post(".", "acquire_input_focus")
+	self.forward_input = true
 end
 
 function on_input(self, action_id, action)
-	local rendercam = require "rendercam.rendercam"
-	local s2w = rendercam.screen_to_world_2d(action.screen_x, action.screen_y)
-	action.x = s2w.x
-	action.y = s2w.y
-	
+	-- Convert screen coordinates to world coordinates (if rendercam is available)
+	local ok, rendercam = pcall(require, "rendercam.rendercam")
+	if ok and rendercam and rendercam.screen_to_world_2d then
+		local s2w = rendercam.screen_to_world_2d(action.screen_x, action.screen_y)
+		action.x = s2w.x
+		action.y = s2w.y
+	end
+
+	-- Normalize a pointer id for this input. Defold mapping can vary between mouse and touch.
+	-- Try common fields, default to 0 for mouse/no-id
+	local pid = action.pointer_id or action.touch_id or action.id or action.touch or action.pointer or 0
+	action.pointer_id = pid
+
 	if self.forward_input then
+		-- Forward the enriched action to the cursor GO. The cursor GO/module should include
+		-- this pointer_id in messages it posts back (cursor.OVER, etc).
 		msg.post("#cursor", "input", { action_id = action_id, action = action })
 	end
 end
 
-function on_message(self, message_id, message, sender)
-	if message_id == cursor.OVER then
-		if pressing then
-			sound.play(sounds[message.group])
+local function play_sound_for_group(group)
+	if not group then return end
+	local s = sounds[group]
+	if s then
+		sound.play(s)
+	end
+end
+
+local function handle_pressed(pid, message)
+	pressing[pid] = true
+	-- Immediately play the note on press
+	play_sound_for_group(message.group)
+	last_played[pid] = message.id
+end
+
+local function handle_released(pid)
+	pressing[pid] = nil
+	last_played[pid] = nil
+end
+
+local function handle_over(pid, message)
+	-- If this pointer is currently pressing and has moved to a different bar, play a new note.
+	if pressing[pid] then
+		if last_played[pid] ~= message.id then
+			play_sound_for_group(message.group)
+			last_played[pid] = message.id
 		end
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	-- Expect the cursor messages to include pointer_id (the value we forwarded in on_input).
+	-- If not present, fall back to 0 to maintain compatibility with mouse.
+	local pid = message.pointer_id or message.touch_id or 0
+
+	if message_id == cursor.OVER then
+		handle_over(pid, message)
 	elseif message_id == cursor.OUT then
-		--print("Cursor out", message.id, message.group, message.x, message.y)
+		-- Optional: clear last_played for this pointer on OUT so re-entering will replay
+		-- last_played[pid] = nil
 	elseif message_id == cursor.PRESSED then
-		pressing = true
-		sound.play(sounds[message.group])
+		handle_pressed(pid, message)
 	elseif message_id == cursor.RELEASED then
-		pressing = false
+		handle_released(pid)
 	elseif message_id == cursor.CLICKED then
-		--print("Clicked", message.id, message.group, message.x, message.y)
+		-- Optional click behavior (not required for xylophone)
 	elseif message_id == cursor.DRAG_START then
-		--print("Drag started", message.id, message.group, message.x, message.y)
+		-- Optional drag handling
 	elseif message_id == cursor.DRAG_END then
-		--print("Drag ended", message.id, message.group, message.x, message.y)
+		-- Optional drag end handling
 	end
 
 	if message_id == hash("collision_response") then
-		--print("I collided with", message.other_id)
+		-- Optional collision logic
 	end
 end

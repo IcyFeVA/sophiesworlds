@@ -9,12 +9,14 @@ function init(self)
 	
 	lastTouchPos = vmath.vector3()
 
-	wx, wy = window.get_size()
-
+	-- Store active touches for multitouch support
+	self.activeTouches = {}
+	
+	-- Remove unused variables
+	-- wx, wy = window.get_size()
+	
 	particlefx.play('/groundBubbles')
-	particlefx.play('/sunRays')	
-
-	print(self.wx, self.wy)
+	particlefx.play('/sunRays')
 end
 
 function final(self)
@@ -28,19 +30,30 @@ end
 function on_message(self, message_id, message, sender)
 	if message_id == hash("window_resized") then
 		print('window resized to ' .. message.width .. ' x ' .. message.height)
+	elseif message_id == hash("bubbles_list") then
+		-- Store the bubbles list for use in deleteBubble function
+		self.current_bubbles = message.bubbles
 	end
 end
 
 function on_input(self, action_id, action)
-	local pos = vmath.vector3(action.x, action.y, 0)
-	-- delete while finger is down
-	deleteBubble(action)
-	
-	if action_id == hash("touch") then
+	-- Handle multitouch properly
+	if action_id == hash("touch") or action_id == hash("multitouch") then
 		if action.pressed then
-			-- delete only on tap
-			--deleteBubble(action)		
+			-- Store touch ID for tracking (use 1 for mouse if touch_id is not available)
+			local touch_id = action.touch_id or 1
+			self.activeTouches[touch_id] = {x = action.x, y = action.y}
+		elseif action.released then
+			-- Remove touch ID when released (use 1 for mouse if touch_id is not available)
+			local touch_id = action.touch_id or 1
+			self.activeTouches[touch_id] = nil
 		end
+	end
+	
+	-- Delete bubbles on both press and release for better responsiveness
+	-- Only call deleteBubble if we have valid screen coordinates
+	if action.screen_x and action.screen_y then
+		deleteBubble(self, action)
 	end
 end
 
@@ -48,26 +61,55 @@ function on_reload(self)
 	
 end
 
-function deleteBubble(tapPos)
-	for i=0, data.tablelength(bubbles) do
-		if bubbles[i] then
-			local stow = rendercam.screen_to_world_2d(tapPos.screen_x, tapPos.screen_y)
-			local bble = bubbles[i]
-			local bbPos = go.get_position(bble)
-			local dist = stow - bbPos
+function deleteBubble(self, tapPos)
+	-- Make sure we have valid screen coordinates
+	if not tapPos.screen_x or not tapPos.screen_y then
+		return
+	end
+	
+	-- Convert screen position to world position once, outside the loop
+	local worldPos = rendercam.screen_to_world_2d(tapPos.screen_x, tapPos.screen_y)
+	
+	-- Make sure we got a valid world position
+	if not worldPos then
+		return
+	end
+	
+	-- More efficient bubble iteration using the spawner's bubble list
+	local spawner = "/spawner#spawner"
+	
+	-- Get bubbles list from spawner
+	local bubbles_list = nil
+	if self.current_bubbles then
+		bubbles_list = self.current_bubbles
+	else
+		-- Fallback to global bubbles if not received yet
+		bubbles_list = bubbles or {}
+	end
+	
+	-- Iterate through bubbles more efficiently using ipairs instead of the custom tablelength function
+	local bubbleCount = #bubbles_list
+	for i = 1, bubbleCount do
+		local bubble_id = bubbles_list[i]
+		if bubble_id then
+			local bbPos = go.get_position(bubble_id)
+			-- Make sure we got a valid position
+			if bbPos then
+				local dist = worldPos - bbPos
 
-			if math.abs(dist.x) < 60 and math.abs(dist.y) < 60 then
-				for _,v in pairs(bubbles) do
-					if bble == bubbles[_] then
-						table.remove(bubbles, _)
-						go.delete(bble)
+				-- Use squared distance to avoid sqrt calculation
+				local dist_squared = dist.x * dist.x + dist.y * dist.y
+				if dist_squared < 60 * 60 then  -- 60 pixels radius
+					-- Remove from spawner's list more efficiently
+					msg.post(spawner, "remove_bubble", {id = bubble_id})
+					-- Don't remove from local table here, let spawner handle it
+					go.delete(bubble_id)
 
-						lastTouchPos = bbPos
-						msg.post("/particleSpawner#particleSpawner", "POP")
+					lastTouchPos = bbPos
+					msg.post("/particleSpawner#particleSpawner", "POP")
 
-						sound.play("/soundfx#pop", {speed = math.random(70, 100) / 100})
-						break
-					end
+					sound.play("/soundfx#pop", {speed = math.random(70, 100) / 100})
+					break
 				end
 			end
 		end
