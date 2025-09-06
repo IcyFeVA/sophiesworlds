@@ -37,6 +37,36 @@ function on_message(self, message_id, message, sender)
     if message_id == hash("update_scroll") then
         self.scroll_position = message.scroll_position
         updateButtonPositions(self)
+    elseif message_id == hash("disable") then
+        -- Hide all GUI nodes
+        for i, game in ipairs(self.games) do
+            pcall(function()
+                gui.set_enabled(gui.get_node("game_button_bg_" .. game.id), false)
+                gui.set_enabled(gui.get_node("game_shadow_" .. game.id), false)
+                gui.set_enabled(gui.get_node("game_title_" .. game.id), false)
+                gui.set_enabled(gui.get_node("game_desc_" .. game.id), false)
+                gui.set_enabled(gui.get_node("game_button_" .. game.id), false)
+            end)
+        end
+        -- Hide title
+        pcall(function()
+            gui.set_enabled(gui.get_node("title"), false)
+        end)
+    elseif message_id == hash("enable") then
+        -- Show all GUI nodes
+        for i, game in ipairs(self.games) do
+            pcall(function()
+                gui.set_enabled(gui.get_node("game_button_bg_" .. game.id), true)
+                gui.set_enabled(gui.get_node("game_shadow_" .. game.id), true)
+                gui.set_enabled(gui.get_node("game_title_" .. game.id), true)
+                gui.set_enabled(gui.get_node("game_desc_" .. game.id), true)
+                gui.set_enabled(gui.get_node("game_button_" .. game.id), true)
+            end)
+        end
+        -- Show title
+        pcall(function()
+            gui.set_enabled(gui.get_node("title"), true)
+        end)
     end
 end
 
@@ -149,7 +179,7 @@ function on_input(self, action_id, action)
                     end)
                     
                     -- Launch the game
-                    msg.post("/controller#controller", "launch_game", {game_id = game.id})
+                    msg.post("controller#controller", "launch_game", {game_id = game.id})
                     return true  -- Consume the input
                 end
             end)
