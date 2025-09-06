@@ -1,0 +1,4 @@
+tile_set: "/gameBubbleWrap/gameBubbleWrap.atlas"
+default_animation: "bubble"
+material: "/builtins/materials/sprite.material"
+blend_mode: BLEND_MODE_ALPHA

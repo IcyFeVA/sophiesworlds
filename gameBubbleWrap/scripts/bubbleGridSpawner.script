@@ -1,0 +1,135 @@
+local data = require "main.data"
+
+function init(self)
+	-- Grid configuration
+	self.grid_width = 8    -- bubbles per row
+	self.grid_height = 6   -- rows of bubbles
+	self.bubble_size = 80  -- bubble diameter in pixels
+	self.bubble_spacing = 10  -- space between bubbles
+	self.bubbles = {}      -- track all bubble instances
+	self.colors = {
+		hash("red"),
+		hash("blue"), 
+		hash("green"),
+		hash("yellow"),
+		hash("purple"),
+		hash("orange")
+	}
+	
+	print("Bubble Grid Spawner initialized")
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("init_grid") then
+		createBubbleGrid(self)
+	elseif message_id == hash("try_pop_bubble") then
+		tryPopBubbleAt(self, message.world_pos)
+	elseif message_id == hash("bubble_popped") then
+		-- Remove popped bubble from our tracking
+		removeBubbleFromGrid(self, message.bubble_id)
+	end
+end
+
+function createBubbleGrid(self)
+	-- Clear existing bubbles
+	for _, bubble_id in pairs(self.bubbles) do
+		if bubble_id then
+			go.delete(bubble_id)
+		end
+	end
+	self.bubbles = {}
+	
+	-- Calculate grid positioning to center it on screen
+	local total_width = (self.grid_width * self.bubble_size) + ((self.grid_width - 1) * self.bubble_spacing)
+	local total_height = (self.grid_height * self.bubble_size) + ((self.grid_height - 1) * self.bubble_spacing)
+	
+	local start_x = -(total_width / 2) + (self.bubble_size / 2)
+	local start_y = (total_height / 2) - (self.bubble_size / 2)
+	
+	-- Create grid of bubbles
+	for row = 1, self.grid_height do
+		self.bubbles[row] = {}
+		for col = 1, self.grid_width do
+			local x = start_x + (col - 1) * (self.bubble_size + self.bubble_spacing)
+			local y = start_y - (row - 1) * (self.bubble_size + self.bubble_spacing)
+			local pos = vmath.vector3(x, y, 0)
+			
+			-- Pick random color for this bubble
+			local color_index = math.random(1, #self.colors)
+			local color = self.colors[color_index]
+			
+			-- Create bubble instance
+			local bubble_id = factory.create("#bubbleFactory", pos, nil, {
+				row = row,
+				col = col,
+				color = color
+			})
+			
+			-- Store bubble reference
+			self.bubbles[row][col] = bubble_id
+		end
+	end
+	
+	-- Notify controller that grid is ready
+	msg.post("/controller#controller", "bubble_grid_ready")
+	
+	print("Created " .. self.grid_width .. "x" .. self.grid_height .. " bubble grid")
+end
+
+function tryPopBubbleAt(self, world_pos)
+	-- Check each bubble to see if the touch position is within its bounds
+	for row = 1, self.grid_height do
+		for col = 1, self.grid_width do
+			local bubble_id = self.bubbles[row][col]
+			if bubble_id then
+				local bubble_pos = go.get_position(bubble_id)
+				if bubble_pos then
+					-- Calculate distance from touch to bubble center
+					local dist = vmath.length(world_pos - bubble_pos)
+					local bubble_radius = self.bubble_size / 2
+					
+					-- If touch is within bubble radius, pop it!
+					if dist <= bubble_radius then
+						msg.post(bubble_id, "pop")
+						-- Remove from grid immediately to prevent double-pops
+						self.bubbles[row][col] = nil
+						return -- Only pop one bubble per touch
+					end
+				end
+			end
+		end
+	end
+end
+
+function removeBubbleFromGrid(self, bubble_id)
+	-- Find and remove bubble from grid tracking
+	for row = 1, self.grid_height do
+		for col = 1, self.grid_width do
+			if self.bubbles[row][col] == bubble_id then
+				self.bubbles[row][col] = nil
+				-- Check if grid is complete after removing bubble
+				checkGridComplete(self)
+				return
+			end
+		end
+	end
+end
+
+function checkGridComplete(self)
+	-- Check if all bubbles have been popped
+	local remaining_bubbles = 0
+	for row = 1, self.grid_height do
+		for col = 1, self.grid_width do
+			if self.bubbles[row][col] then
+				remaining_bubbles = remaining_bubbles + 1
+			end
+		end
+	end
+	
+	if remaining_bubbles == 0 then
+		-- All bubbles popped! Reset the grid after a short delay
+		timer.delay(1.0, false, function()
+			createBubbleGrid(self)
+		end)
+	end
+end
