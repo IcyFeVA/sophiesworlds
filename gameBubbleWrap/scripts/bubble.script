@@ -18,6 +18,9 @@ function init(self)
 		local color = colors[math.random(1, #colors)]
 		go.set("#sprite", "tint", color)
 	end
+	
+	-- Add gentle wobbly animation like the original gameBubbles
+	addWobblyAnimation(self)
 end
 
 function on_message(self, message_id, message, sender)
@@ -29,6 +32,9 @@ end
 function animatePopBubble(self)
 	-- Prevent double pops
 	self.popped = true
+	
+	-- Stop all ongoing wobble animations to avoid conflicts
+	go.cancel_animations(".")
 	
 	-- Get bubble position for particle effect
 	local bubble_pos = go.get_position()
@@ -57,5 +63,37 @@ function animatePopBubble(self)
 			-- Delete the bubble
 			go.delete()
 		end)
+	end)
+end
+
+function addWobblyAnimation(self)
+	-- Random parameters for each bubble to make them unique
+	self.wobble_speed = 0.8 + math.random() * 0.4  -- Random speed between 0.8 and 1.2
+	self.wobble_scale = 0.95 + math.random() * 0.1  -- Random scale variation (0.95 to 1.05)
+	self.rotation_speed = 1.0 + math.random() * 2.0  -- Random rotation speed
+	self.start_delay = math.random() * 2.0  -- Random start delay to offset animations
+	
+	-- Y-scale wobble animation (pingpong loop like original)
+	timer.delay(self.start_delay, false, function()
+		if not self.popped then
+			go.animate(".", "scale.y", go.PLAYBACK_LOOP_PINGPONG, self.wobble_scale, go.EASING_INOUTSINE, self.wobble_speed)
+		end
+	end)
+	
+	-- Gentle rotation wobble
+	timer.delay(self.start_delay + 0.3, false, function()
+		if not self.popped then
+			local rotation_amount = 5 + math.random() * 10  -- 5-15 degrees
+			go.animate(".", "euler.z", go.PLAYBACK_LOOP_PINGPONG, rotation_amount, go.EASING_INOUTSINE, self.rotation_speed)
+		end
+	end)
+	
+	-- Optional: Very subtle position wobble for extra life
+	timer.delay(self.start_delay + 0.6, false, function()
+		if not self.popped then
+			local original_pos = go.get_position()
+			local wobble_distance = 2 + math.random() * 3  -- 2-5 pixel wobble
+			go.animate(".", "position.y", go.PLAYBACK_LOOP_PINGPONG, original_pos.y + wobble_distance, go.EASING_INOUTSINE, self.wobble_speed * 1.2)
+		end
 	end)
 end
