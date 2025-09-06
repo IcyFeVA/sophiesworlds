@@ -1,0 +1,256 @@
+local data = require "main.data"
+
+function init(self)
+	-- Game configuration
+	self.num_shapes = 4           -- Number of shapes to match per level
+	self.shape_size = 100         -- Shape diameter in pixels
+	self.outline_size = 120       -- Outline diameter (slightly larger for visual feedback)
+	self.drag_threshold = 80      -- Distance threshold for successful matching
+	
+	-- Shape types configuration  
+	self.shape_types = {"circle", "square", "triangle", "star"}
+	self.shape_colors = {
+		vmath.vector4(1.0, 0.3, 0.3, 1.0),  -- red
+		vmath.vector4(0.3, 0.3, 1.0, 1.0),  -- blue  
+		vmath.vector4(0.3, 1.0, 0.3, 1.0),  -- green
+		vmath.vector4(1.0, 1.0, 0.3, 1.0),  -- yellow
+		vmath.vector4(1.0, 0.3, 1.0, 1.0),  -- purple
+		vmath.vector4(1.0, 0.7, 0.3, 1.0)   -- orange
+	}
+	
+	-- Game state
+	self.active_shapes = {}       -- Track draggable shapes
+	self.target_outlines = {}     -- Track target outline positions
+	self.dragging_shape = nil     -- Currently dragged shape ID
+	self.matched_count = 0        -- Number of successfully matched shapes
+	
+	print("Shape Game Manager initialized")
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("init_game") then
+		createShapeMatchingLevel(self)
+	elseif message_id == hash("shape_input") then
+		handleShapeInteraction(self, message)
+	elseif message_id == hash("shape_matched") then
+		-- Shape was successfully matched
+		handleShapeMatched(self, message.shape_id, message.target_id)
+	elseif message_id == hash("shape_drag_start") then
+		-- Shape started being dragged
+		self.dragging_shape = message.shape_id
+		print("Started dragging shape: " .. tostring(message.shape_id))
+	elseif message_id == hash("shape_drag_end") then
+		-- Shape stopped being dragged
+		if self.dragging_shape == message.shape_id then
+			self.dragging_shape = nil
+			print("Stopped dragging shape: " .. tostring(message.shape_id))
+		end
+	end
+end
+
+function createShapeMatchingLevel(self)
+	-- Clear existing shapes and outlines
+	clearLevel(self)
+	
+	-- Calculate positions for shapes and outlines
+	local screen_width = 960   -- Target screen width
+	local screen_height = 540  -- Target screen height
+	
+	-- Position draggable shapes on the left side
+	local shapes_start_x = -screen_width/4
+	local shapes_start_y = screen_height/4 - 50
+	local shape_spacing_y = 120
+	
+	-- Position target outlines on the right side
+	local outlines_start_x = screen_width/4
+	local outlines_start_y = screen_height/4 - 50
+	local outline_spacing_y = 120
+	
+	-- Create shape-color combinations and shuffle them
+	local level_shapes = {}
+	for i = 1, self.num_shapes do
+		local shape_type = self.shape_types[((i-1) % #self.shape_types) + 1]
+		local color = self.shape_colors[i]
+		table.insert(level_shapes, {shape = shape_type, color = color, id = i})
+	end
+	
+	-- Shuffle outline positions for difficulty
+	local outline_positions = {}
+	for i = 1, self.num_shapes do
+		local y_pos = outlines_start_y - (i-1) * outline_spacing_y
+		table.insert(outline_positions, y_pos)
+	end
+	-- Simple shuffle
+	for i = #outline_positions, 2, -1 do
+		local j = math.random(i)
+		outline_positions[i], outline_positions[j] = outline_positions[j], outline_positions[i]
+	end
+	
+	-- Create draggable shapes
+	for i, shape_data in ipairs(level_shapes) do
+		local y_pos = shapes_start_y - (i-1) * shape_spacing_y
+		local pos = vmath.vector3(shapes_start_x, y_pos, 0.1)
+		
+		local shape_id = factory.create("#shapeFactory", pos, nil, {
+			shape_type = shape_data.shape,
+			color = shape_data.color,
+			target_id = shape_data.id,
+			is_draggable = true
+		})
+		
+		self.active_shapes[shape_data.id] = {
+			id = shape_id,
+			shape_type = shape_data.shape,
+			color = shape_data.color,
+			matched = false
+		}
+	end
+	
+	-- Create target outlines
+	for i, shape_data in ipairs(level_shapes) do
+		local y_pos = outline_positions[i]
+		local pos = vmath.vector3(outlines_start_x, y_pos, 0)
+		
+		local outline_id = factory.create("#outlineFactory", pos, nil, {
+			shape_type = shape_data.shape,
+			color = shape_data.color,
+			target_id = shape_data.id,
+			is_outline = true
+		})
+		
+		self.target_outlines[shape_data.id] = {
+			id = outline_id,
+			shape_type = shape_data.shape,
+			color = shape_data.color,
+			position = pos,
+			occupied = false
+		}
+	end
+	
+	-- Reset game state
+	self.matched_count = 0
+	self.dragging_shape = nil
+	
+	-- Notify controller that game is ready
+	msg.post("/controller#controller", "game_ready")
+	
+	print("Created shape matching level with " .. self.num_shapes .. " shapes")
+end
+
+function handleShapeInteraction(self, input_data)
+	local world_pos = input_data.world_pos
+	local input_type = input_data.input_type
+	
+	if input_type == "pressed" then
+		-- Check if any draggable shape was touched
+		for target_id, shape_data in pairs(self.active_shapes) do
+			if not shape_data.matched then
+				local shape_pos = go.get_position(shape_data.id)
+				if shape_pos then
+					local dist = vmath.length(world_pos - shape_pos)
+					if dist <= (self.shape_size / 2) then
+						-- Start dragging this shape
+						msg.post(shape_data.id, "start_drag", {touch_pos = world_pos})
+						self.dragging_shape = shape_data.id
+						return
+					end
+				end
+			end
+		end
+	elseif input_type == "drag" then
+		-- Handle continuous drag updates
+		if self.dragging_shape then
+			msg.post(self.dragging_shape, "update_drag", {drag_pos = world_pos})
+		end
+	elseif input_type == "released" then
+		-- Check if we were dragging a shape
+		if self.dragging_shape then
+			-- Check if dropped near any matching outline
+			for target_id, outline_data in pairs(self.target_outlines) do
+				if not outline_data.occupied then
+					local dist = vmath.length(world_pos - outline_data.position)
+					if dist <= self.drag_threshold then
+						-- Check if this is the correct shape-color match
+						local dragged_shape = findShapeById(self, self.dragging_shape)
+						if dragged_shape and dragged_shape.target_id == target_id then
+							-- Successful match!
+							msg.post(self.dragging_shape, "match_success", {
+								target_pos = outline_data.position,
+								target_id = target_id
+							})
+							return
+						else
+							-- Wrong match - return shape to original position
+							msg.post(self.dragging_shape, "match_failed")
+						end
+					end
+				end
+			end
+			-- If we get here, shape was released without matching
+			msg.post(self.dragging_shape, "release_drag")
+			self.dragging_shape = nil
+		end
+	end
+end
+
+function handleShapeMatched(self, shape_id, target_id)
+	-- Mark shape as matched
+	local shape_data = findShapeById(self, shape_id)
+	if shape_data then
+		shape_data.matched = true
+		self.matched_count = self.matched_count + 1
+		
+		-- Mark outline as occupied
+		if self.target_outlines[target_id] then
+			self.target_outlines[target_id].occupied = true
+		end
+		
+		print("Shape matched! (" .. self.matched_count .. "/" .. self.num_shapes .. ")")
+		
+		-- Check if level is complete
+		if self.matched_count >= self.num_shapes then
+			print("🎉 Level complete! All shapes matched!")
+			
+			-- Notify controller about completion
+			msg.post("/controller#controller", "level_complete")
+			
+			-- Auto-reset after celebration delay
+			timer.delay(2.0, false, function()
+				createShapeMatchingLevel(self)
+				print("✨ New shape matching level ready!")
+			end)
+		end
+	end
+end
+
+function clearLevel(self)
+	-- Delete all active shapes
+	for _, shape_data in pairs(self.active_shapes) do
+		if shape_data.id then
+			go.delete(shape_data.id)
+		end
+	end
+	
+	-- Delete all target outlines
+	for _, outline_data in pairs(self.target_outlines) do
+		if outline_data.id then
+			go.delete(outline_data.id)
+		end
+	end
+	
+	-- Clear tracking tables
+	self.active_shapes = {}
+	self.target_outlines = {}
+	self.dragging_shape = nil
+	self.matched_count = 0
+end
+
+function findShapeById(self, shape_id)
+	for target_id, shape_data in pairs(self.active_shapes) do
+		if shape_data.id == shape_id then
+			shape_data.target_id = target_id
+			return shape_data
+		end
+	end
+	return nil
+end

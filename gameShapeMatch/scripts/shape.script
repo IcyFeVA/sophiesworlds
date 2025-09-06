@@ -1,0 +1,237 @@
+function init(self)
+	-- Shape properties
+	self.is_draggable = true
+	self.is_dragging = false
+	self.drag_started = false
+	self.original_position = go.get_position()
+	self.original_scale = go.get_scale()
+	self.target_id = nil
+	self.shape_type = "circle"  -- Default shape type
+	
+	-- Drag offset for smooth dragging
+	self.drag_offset = vmath.vector3(0, 0, 0)
+	
+	-- Set shape color and properties based on factory data
+	setupShapeAppearance(self)
+	
+	-- Add gentle idle animation for visual appeal
+	addIdleAnimation(self)
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("start_drag") and not self.is_dragging then
+		startDragBehavior(self, message.touch_pos)
+	elseif message_id == hash("update_drag") and self.is_dragging then
+		updateDragPosition(self, message.drag_pos)
+	elseif message_id == hash("release_drag") and self.is_dragging then
+		stopDragBehavior(self)
+	elseif message_id == hash("match_success") then
+		handleSuccessfulMatch(self, message.target_pos, message.target_id)
+	elseif message_id == hash("match_failed") then
+		handleFailedMatch(self)
+	end
+end
+
+function update(self, dt)
+	-- Handle continuous dragging if active
+	if self.is_dragging then
+		-- Get current mouse/touch position and update shape position
+		-- This will be handled by input messages for now
+	end
+end
+
+function setupShapeAppearance(self)
+	-- Get factory properties if available
+	local props = go.get("#sprite", "tint")
+	if props then
+		-- Set random bright color for visibility
+		local colors = {
+			vmath.vector4(1.0, 0.3, 0.3, 1.0),  -- red
+			vmath.vector4(0.3, 0.3, 1.0, 1.0),  -- blue  
+			vmath.vector4(0.3, 1.0, 0.3, 1.0),  -- green
+			vmath.vector4(1.0, 1.0, 0.3, 1.0),  -- yellow
+			vmath.vector4(1.0, 0.3, 1.0, 1.0),  -- purple
+			vmath.vector4(1.0, 0.7, 0.3, 1.0)   -- orange
+		}
+		local color = colors[math.random(1, #colors)]
+		go.set("#sprite", "tint", color)
+	end
+	
+	-- Store initial position for return behavior
+	self.original_position = go.get_position()
+end
+
+function addIdleAnimation(self)
+	-- Add subtle floating animation for visual appeal
+	if not self.is_dragging then
+		local float_distance = 5 + math.random() * 5  -- 5-10 pixels
+		local float_speed = 1.5 + math.random() * 1.0  -- 1.5-2.5 seconds
+		local start_delay = math.random() * 2.0  -- Random delay to offset animations
+		
+		timer.delay(start_delay, false, function()
+			if not self.is_dragging then
+				local original_y = self.original_position.y
+				go.animate(".", "position.y", go.PLAYBACK_LOOP_PINGPONG, 
+					original_y + float_distance, go.EASING_INOUTSINE, float_speed)
+			end
+		end)
+		
+		-- Add gentle scale pulse
+		timer.delay(start_delay + 0.5, false, function()
+			if not self.is_dragging then
+				go.animate(".", "scale", go.PLAYBACK_LOOP_PINGPONG, 
+					self.original_scale * 1.05, go.EASING_INOUTSINE, float_speed * 0.8)
+			end
+		end)
+	end
+end
+
+function updateDragPosition(self, drag_pos)
+	if not self.is_dragging then
+		return
+	end
+	
+	-- Update shape position to follow drag with offset
+	local new_pos = drag_pos + self.drag_offset
+	go.set_position(vmath.vector3(new_pos.x, new_pos.y, 0.2))
+end
+
+function startDragBehavior(self, touch_pos)
+	if self.is_dragging then
+		return  -- Already dragging
+	end
+	
+	self.is_dragging = true
+	self.drag_started = true
+	
+	-- Calculate drag offset for smooth dragging
+	local current_pos = go.get_position()
+	self.drag_offset = current_pos - touch_pos
+	
+	-- Stop idle animations
+	go.cancel_animations(".")
+	
+	-- Scale up slightly to show it's being dragged
+	go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, 
+		self.original_scale * 1.15, go.EASING_OUTBACK, 0.15)
+	
+	-- Bring to front
+	go.set_position(vmath.vector3(current_pos.x, current_pos.y, 0.2))
+	
+	-- Play pickup sound with pitch variation
+	sound.play("/soundfx#pickup", {speed = math.random(90, 110) / 100})
+	
+	-- Notify game manager
+	msg.post("/shapeGameManager#shapeGameManager", "shape_drag_start", {
+		shape_id = go.get_id()
+	})
+	
+	print("Started dragging shape")
+end
+
+function stopDragBehavior(self)
+	if not self.is_dragging then
+		return
+	end
+	
+	self.is_dragging = false
+	
+	-- Return to original scale
+	go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, 
+		self.original_scale, go.EASING_OUTBACK, 0.2)
+	
+	-- Return to original z-position
+	local current_pos = go.get_position()
+	go.set_position(vmath.vector3(current_pos.x, current_pos.y, 0.1))
+	
+	-- Animate back to original position
+	go.animate(".", "position", go.PLAYBACK_ONCE_FORWARD, 
+		self.original_position, go.EASING_OUTQUAD, 0.3)
+	
+	-- Play putback sound
+	sound.play("/soundfx#putback", {speed = math.random(90, 110) / 100})
+	
+	-- Restart idle animations after a delay
+	timer.delay(0.5, false, function()
+		if not self.is_dragging then
+			addIdleAnimation(self)
+		end
+	end)
+	
+	-- Notify game manager
+	msg.post("/shapeGameManager#shapeGameManager", "shape_drag_end", {
+		shape_id = go.get_id()
+	})
+	
+	print("Stopped dragging shape")
+end
+
+function handleSuccessfulMatch(self, target_pos, target_id)
+	if not self.is_dragging then
+		return
+	end
+	
+	self.is_dragging = false
+	self.target_id = target_id
+	
+	-- Stop all animations
+	go.cancel_animations(".")
+	
+	-- Animate to target position with satisfying easing
+	go.animate(".", "position", go.PLAYBACK_ONCE_FORWARD, 
+		target_pos, go.EASING_OUTBACK, 0.4)
+	
+	-- Scale animation for success feedback
+	go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, 
+		self.original_scale * 1.2, go.EASING_OUTBACK, 0.2, 0, function()
+		-- Scale back to normal after success animation
+		go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, 
+			self.original_scale, go.EASING_OUTQUAD, 0.2)
+	end)
+	
+	-- Play success sound with higher pitch
+	sound.play("/soundfx#success", {speed = math.random(110, 130) / 100})
+	
+	-- Add celebration particle effect or color flash
+	local success_tint = vmath.vector4(1.0, 1.0, 1.0, 1.0)  -- White flash
+	go.animate("#sprite", "tint", go.PLAYBACK_ONCE_PINGPONG, 
+		success_tint, go.EASING_OUTQUAD, 0.15)
+	
+	-- Notify game manager about successful match
+	msg.post("/shapeGameManager#shapeGameManager", "shape_matched", {
+		shape_id = go.get_id(),
+		target_id = target_id
+	})
+	
+	print("Shape successfully matched!")
+end
+
+function handleFailedMatch(self)
+	if not self.is_dragging then
+		return
+	end
+	
+	-- Add shake animation to indicate failed match
+	local shake_amount = 10
+	local original_pos = go.get_position()
+	
+	-- Quick shake animation
+	go.animate(".", "position.x", go.PLAYBACK_ONCE_PINGPONG, 
+		original_pos.x + shake_amount, go.EASING_OUTQUAD, 0.1, 0, function()
+		go.animate(".", "position.x", go.PLAYBACK_ONCE_PINGPONG, 
+			original_pos.x - shake_amount, go.EASING_OUTQUAD, 0.1, 0, function()
+			-- Return to original behavior
+			stopDragBehavior(self)
+		end)
+	end)
+	
+	-- Play error sound with lower pitch
+	sound.play("/soundfx#error", {speed = math.random(70, 90) / 100})
+	
+	-- Flash red briefly to indicate error
+	local error_tint = vmath.vector4(1.0, 0.5, 0.5, 1.0)  -- Light red
+	go.animate("#sprite", "tint", go.PLAYBACK_ONCE_PINGPONG, 
+		error_tint, go.EASING_OUTQUAD, 0.2)
+	
+	print("Shape match failed - wrong target")
+end

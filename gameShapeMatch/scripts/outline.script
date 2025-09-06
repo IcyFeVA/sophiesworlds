@@ -1,0 +1,155 @@
+function init(self)
+	-- Outline properties
+	self.is_outline = true
+	self.is_occupied = false
+	self.target_id = nil
+	self.shape_type = "circle"  -- Default shape type
+	self.original_scale = go.get_scale()
+	self.original_tint = vmath.vector4(1.0, 1.0, 1.0, 0.3)  -- Semi-transparent outline
+	
+	-- Setup outline appearance 
+	setupOutlineAppearance(self)
+	
+	-- Add gentle pulsing animation to indicate it's a target
+	addPulseAnimation(self)
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("highlight_target") then
+		highlightAsTarget(self)
+	elseif message_id == hash("unhighlight_target") then
+		unhighlightTarget(self)
+	elseif message_id == hash("mark_occupied") then
+		markAsOccupied(self)
+	elseif message_id == hash("mark_empty") then
+		markAsEmpty(self)
+	end
+end
+
+function setupOutlineAppearance(self)
+	-- Set outline to be semi-transparent with dashed/outlined look
+	go.set("#sprite", "tint", self.original_tint)
+	
+	-- Scale slightly larger than draggable shapes to show target area
+	go.set_scale(self.original_scale * 1.1)
+	
+	-- Set up visual styling for outline
+	-- Since we're using the bubble sprite, we'll make it look like an outline
+	-- by reducing alpha and using a border-like tint
+	local outline_color = vmath.vector4(0.8, 0.8, 1.0, 0.4)  -- Light blue outline
+	go.set("#sprite", "tint", outline_color)
+end
+
+function addPulseAnimation(self)
+	if not self.is_occupied then
+		-- Gentle pulsing animation to draw attention
+		local pulse_scale = self.original_scale * 1.15
+		local pulse_speed = 2.0 + math.random() * 1.0  -- 2-3 seconds
+		local start_delay = math.random() * 1.0  -- Random delay
+		
+		timer.delay(start_delay, false, function()
+			if not self.is_occupied then
+				go.animate(".", "scale", go.PLAYBACK_LOOP_PINGPONG, 
+					pulse_scale, go.EASING_INOUTSINE, pulse_speed)
+			end
+		end)
+		
+		-- Subtle alpha pulsing as well
+		timer.delay(start_delay + 0.3, false, function()
+			if not self.is_occupied then
+				local bright_tint = vmath.vector4(self.original_tint.x, self.original_tint.y, 
+					self.original_tint.z, self.original_tint.w * 1.5)
+				go.animate("#sprite", "tint.w", go.PLAYBACK_LOOP_PINGPONG, 
+					bright_tint.w, go.EASING_INOUTSINE, pulse_speed * 0.8)
+			end
+		end)
+	end
+end
+
+function highlightAsTarget(self)
+	if self.is_occupied then
+		return
+	end
+	
+	-- Stop current animations
+	go.cancel_animations(".")
+	
+	-- Bright highlight animation
+	local highlight_color = vmath.vector4(1.0, 1.0, 0.0, 0.8)  -- Bright yellow
+	local highlight_scale = self.original_scale * 1.25
+	
+	-- Quick scale up and color change
+	go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, 
+		highlight_scale, go.EASING_OUTBACK, 0.2)
+	go.animate("#sprite", "tint", go.PLAYBACK_ONCE_FORWARD, 
+		highlight_color, go.EASING_OUTQUAD, 0.2)
+		
+	-- Play soft highlight sound
+	sound.play("/soundfx#highlight", {speed = math.random(95, 105) / 100, gain = 0.3})
+	
+	print("Target outline highlighted")
+end
+
+function unhighlightTarget(self)
+	if self.is_occupied then
+		return
+	end
+	
+	-- Return to normal appearance
+	local normal_scale = self.original_scale * 1.1
+	go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, 
+		normal_scale, go.EASING_OUTQUAD, 0.3)
+	go.animate("#sprite", "tint", go.PLAYBACK_ONCE_FORWARD, 
+		self.original_tint, go.EASING_OUTQUAD, 0.3, 0, function()
+		-- Restart pulse animation after unhighlighting
+		if not self.is_occupied then
+			addPulseAnimation(self)
+		end
+	end)
+	
+	print("Target outline unhighlighted")
+end
+
+function markAsOccupied(self)
+	self.is_occupied = true
+	
+	-- Stop all animations
+	go.cancel_animations(".")
+	
+	-- Change appearance to show it's occupied
+	local occupied_color = vmath.vector4(0.3, 0.8, 0.3, 0.6)  -- Green tint
+	local occupied_scale = self.original_scale * 1.0  -- Normal scale
+	
+	go.animate(".", "scale", go.PLAYBACK_ONCE_FORWARD, 
+		occupied_scale, go.EASING_OUTQUAD, 0.4)
+	go.animate("#sprite", "tint", go.PLAYBACK_ONCE_FORWARD, 
+		occupied_color, go.EASING_OUTQUAD, 0.4)
+	
+	-- Play success confirmation sound
+	sound.play("/soundfx#success", {speed = math.random(100, 120) / 100, gain = 0.4})
+	
+	-- Add brief celebration animation
+	timer.delay(0.5, false, function()
+		go.animate(".", "scale", go.PLAYBACK_ONCE_PINGPONG, 
+			occupied_scale * 1.1, go.EASING_OUTBACK, 0.3)
+	end)
+	
+	print("Target outline marked as occupied")
+end
+
+function markAsEmpty(self)
+	self.is_occupied = false
+	
+	-- Stop all animations
+	go.cancel_animations(".")
+	
+	-- Return to outline appearance
+	setupOutlineAppearance(self)
+	
+	-- Restart pulsing animation after a delay
+	timer.delay(0.5, false, function()
+		addPulseAnimation(self)
+	end)
+	
+	print("Target outline marked as empty")
+end
