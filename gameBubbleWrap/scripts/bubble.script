@@ -30,6 +30,14 @@ function animatePopBubble(self)
 	-- Prevent double pops
 	self.popped = true
 	
+	-- Get bubble position for particle effect
+	local bubble_pos = go.get_position()
+	
+	-- Spawn particles at bubble location
+	msg.post("/particleSpawner#particleSpawner", "spawn_particles", {
+		position = bubble_pos
+	})
+	
 	-- Play pop sound with random pitch variation
 	sound.play("/soundfx#pop", {speed = math.random(80, 120) / 100})
 	

@@ -1,0 +1,41 @@
+function init(self)
+	self.particleTimers = {}
+	print("Bubble Wrap Particle Spawner initialized")
+end
+
+function final(self)
+	-- Clean up any remaining timers
+	for _, timer_id in pairs(self.particleTimers) do
+		timer.cancel(timer_id)
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("spawn_particles") then
+		spawnPopParticles(self, message.position)
+	end
+end
+
+function spawnPopParticles(self, position)
+	-- Create particle effect at the specified position
+	local particles_id = factory.create("#particleFactory", position)
+	particlefx.play(particles_id)
+	
+	print("Spawning particles at position: " .. tostring(position.x) .. ", " .. tostring(position.y))
+	
+	local function deleteParticles()
+		go.delete(particles_id)
+		-- Remove timer from tracking (simplified cleanup)
+		for i, timer_id in ipairs(self.particleTimers) do
+			if timer_id == _G.current_timer then
+				table.remove(self.particleTimers, i)
+				break
+			end
+		end
+	end
+	
+	-- Store timer reference for cleanup (particles last 1 second total)
+	local timer_id = timer.delay(1.0, false, deleteParticles)
+	table.insert(self.particleTimers, timer_id)
+	_G.current_timer = timer_id
+end
