@@ -8,7 +8,7 @@ A simple, satisfying bubble wrap popping game designed for toddlers and young ch
 - **Multitouch Support**: Multiple bubbles can be popped simultaneously
 - **Visual Feedback**: Bubbles scale up then fade out when popped
 - **Audio Feedback**: Each pop plays a sound with random pitch variation
-- **Auto-Reset**: Grid automatically regenerates when all bubbles are popped
+- **Auto-Reset**: Grid automatically regenerates with celebration when all bubbles are popped
 - **Colorful Design**: Randomly colored bubbles (red, blue, green, yellow, purple, orange)
 
 ## Gameplay
@@ -16,7 +16,7 @@ A simple, satisfying bubble wrap popping game designed for toddlers and young ch
 - Touch or click any bubble to pop it
 - Bubbles will scale up briefly then disappear with a satisfying animation
 - Each pop plays a sound effect
-- When all bubbles are popped, a new grid appears after 1 second
+- When all bubbles are popped, you'll hear a celebration sound and a new grid appears after 1.5 seconds
 - Perfect for stress relief and satisfying tactile feedback
 
 ## Technical Details

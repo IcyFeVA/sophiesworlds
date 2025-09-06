@@ -30,6 +30,10 @@ function on_message(self, message_id, message, sender)
 	elseif message_id == hash("bubble_grid_ready") then
 		-- Grid is ready, could show UI or play intro sound
 		print("Bubble grid ready - let the popping begin!")
+	elseif message_id == hash("grid_complete") then
+		-- All bubbles have been popped! Could add screen flash or other celebration
+		print("🎆 Congratulations! All bubbles popped! New ones coming soon...")
+		-- Could add visual effects here like screen flash or particle burst
 	end
 end
 

@@ -91,8 +91,8 @@ function tryPopBubbleAt(self, world_pos)
 					-- If touch is within bubble radius, pop it!
 					if dist <= bubble_radius then
 						msg.post(bubble_id, "pop")
-						-- Remove from grid immediately to prevent double-pops
-						self.bubbles[row][col] = nil
+						-- Don't remove from grid here - let bubble's cleanup message handle it
+						-- This ensures checkGridComplete gets called properly
 						return -- Only pop one bubble per touch
 					end
 				end
@@ -107,12 +107,14 @@ function removeBubbleFromGrid(self, bubble_id)
 		for col = 1, self.grid_width do
 			if self.bubbles[row][col] == bubble_id then
 				self.bubbles[row][col] = nil
+				print("Bubble removed from position [" .. row .. "][" .. col .. "]")
 				-- Check if grid is complete after removing bubble
 				checkGridComplete(self)
 				return
 			end
 		end
 	end
+	print("WARNING: Could not find bubble " .. tostring(bubble_id) .. " in grid")
 end
 
 function checkGridComplete(self)
@@ -126,10 +128,21 @@ function checkGridComplete(self)
 		end
 	end
 	
+	print("Checking grid completion: " .. remaining_bubbles .. " bubbles remaining")
+	
 	if remaining_bubbles == 0 then
-		-- All bubbles popped! Reset the grid after a short delay
-		timer.delay(1.0, false, function()
+		print("🎉 All bubbles popped! Creating new bubble grid...")
+		
+		-- Play celebration sound with higher pitch
+		sound.play("/soundfx#pop", {speed = 1.5, gain = 0.8})
+		
+		-- Notify controller about completion
+		msg.post("/controller#controller", "grid_complete")
+		
+		-- Reset the grid after a short delay for satisfaction
+		timer.delay(1.5, false, function()
 			createBubbleGrid(self)
+			print("✨ New bubble grid ready! Pop away!")
 		end)
 	end
 end
