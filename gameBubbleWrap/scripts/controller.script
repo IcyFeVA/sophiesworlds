@@ -55,8 +55,15 @@ function on_input(self, action_id, action)
 end
 
 function popBubble(self, tapPos)
+	-- Make sure we have valid input action
+	if not tapPos then
+		print("WARNING: popBubble called with nil tapPos")
+		return
+	end
+	
 	-- Make sure we have valid screen coordinates
 	if not tapPos.screen_x or not tapPos.screen_y then
+		print("WARNING: popBubble called without screen coordinates")
 		return
 	end
 	

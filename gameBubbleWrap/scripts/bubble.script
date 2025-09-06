@@ -22,11 +22,11 @@ end
 
 function on_message(self, message_id, message, sender)
 	if message_id == hash("pop") and not self.popped then
-		popBubble(self)
+		animatePopBubble(self)
 	end
 end
 
-function popBubble(self)
+function animatePopBubble(self)
 	-- Prevent double pops
 	self.popped = true
 	
