@@ -1,0 +1,191 @@
+local data = require "main.data"
+
+function init(self)
+    msg.post(".", "acquire_input_focus")
+    
+    -- Game data with information about each available minigame
+    self.games = {
+        {
+            id = "bubbles",
+            title = "Bubble Pop",
+            collection = "/gameBubbles/gameBubbles.collection",
+            color = vmath.vector4(0.3, 0.7, 1.0, 1.0), -- Light blue
+            description = "Pop floating bubbles in the ocean!"
+        },
+        {
+            id = "bubblewrap", 
+            title = "Bubble Wrap",
+            collection = "/gameBubbleWrap/gameBubbleWrap.collection",
+            color = vmath.vector4(1.0, 0.4, 0.6, 1.0), -- Pink
+            description = "Pop all the bubbles in the grid!"
+        },
+        {
+            id = "xylophone",
+            title = "Xylophone",
+            collection = "/gameXylophone/gameXylophone.collection", 
+            color = vmath.vector4(0.9, 0.7, 0.2, 1.0), -- Gold
+            description = "Make beautiful music!"
+        },
+                {
+            id = "bubbles",
+            title = "Bubble Pop",
+            collection = "/gameBubbles/gameBubbles.collection",
+            color = vmath.vector4(0.3, 0.7, 1.0, 1.0), -- Light blue
+            description = "Pop floating bubbles in the ocean!"
+        },
+        {
+            id = "bubblewrap", 
+            title = "Bubble Wrap",
+            collection = "/gameBubbleWrap/gameBubbleWrap.collection",
+            color = vmath.vector4(1.0, 0.4, 0.6, 1.0), -- Pink
+            description = "Pop all the bubbles in the grid!"
+        },
+        {
+            id = "xylophone",
+            title = "Xylophone",
+            collection = "/gameXylophone/gameXylophone.collection", 
+            color = vmath.vector4(0.9, 0.7, 0.2, 1.0), -- Gold
+            description = "Make beautiful music!"
+        }
+    }
+    
+    -- GUI state
+    self.scroll_position = 0
+    self.max_scroll = 0
+    self.scroll_velocity = 0
+    self.is_dragging = false
+    self.drag_start_x = 0
+    self.drag_start_scroll = 0
+    
+    -- Calculate scroll parameters
+    self.button_width = 300
+    self.button_spacing = 40
+    self.total_width = #self.games * (self.button_width + self.button_spacing) - self.button_spacing
+    self.visible_width = data.SW - 100  -- Screen width minus margins
+    self.max_scroll = math.max(0, self.total_width - self.visible_width)
+    
+    print("Game Selector initialized with " .. #self.games .. " games")
+    print("Max scroll distance: " .. self.max_scroll)
+    
+    -- Enable GUI rendering
+    msg.post("@render:", "use_camera_projection")
+    msg.post("gameSelector#gameSelector", "enable")
+end
+
+function final(self)
+    msg.post(".", "release_input_focus")
+end
+
+function update(self, dt)
+    local prev_scroll = self.scroll_position
+    
+    -- Apply scroll physics
+    if not self.is_dragging then
+        -- Apply momentum and bouncing
+        if self.scroll_velocity ~= 0 then
+            self.scroll_position = self.scroll_position + self.scroll_velocity * dt
+            
+            -- Bounce at edges with elastic effect
+            local bounce_strength = 800
+            local damping = 0.92
+            
+            if self.scroll_position < 0 then
+                -- Left bounce
+                self.scroll_velocity = self.scroll_velocity + (-self.scroll_position) * bounce_strength * dt
+                if self.scroll_position < -50 then
+                    self.scroll_position = -50
+                end
+            elseif self.scroll_position > self.max_scroll then
+                -- Right bounce  
+                self.scroll_velocity = self.scroll_velocity - (self.scroll_position - self.max_scroll) * bounce_strength * dt
+                if self.scroll_position > self.max_scroll + 50 then
+                    self.scroll_position = self.max_scroll + 50
+                end
+            end
+            
+            -- Apply damping
+            self.scroll_velocity = self.scroll_velocity * damping
+            
+            -- Stop very small velocities
+            if math.abs(self.scroll_velocity) < 10 then
+                self.scroll_velocity = 0
+                -- Snap back to bounds
+                if self.scroll_position < 0 then
+                    self.scroll_position = 0
+                elseif self.scroll_position > self.max_scroll then
+                    self.scroll_position = self.max_scroll
+                end
+            end
+        end
+    end
+    
+    -- Update GUI if scroll position changed
+    if math.abs(self.scroll_position - prev_scroll) > 0.1 then
+        msg.post("gameSelector#gameSelector", "update_scroll", {
+            scroll_position = self.scroll_position
+        })
+    end
+end
+
+function on_message(self, message_id, message, sender)
+    if message_id == hash("launch_game") then
+        launchGame(self, message.game_id)
+    end
+end
+
+function on_input(self, action_id, action)
+    -- Handle touch/mouse input for scrolling
+    if action_id == hash("touch") then
+        if action.pressed then
+            self.is_dragging = true
+            self.drag_start_x = action.screen_x
+            self.drag_start_scroll = self.scroll_position
+            self.scroll_velocity = 0
+        elseif action.released then
+            if self.is_dragging then
+                self.is_dragging = false
+                -- Calculate final velocity based on drag distance and time
+                -- This creates momentum scrolling
+                local drag_distance = action.screen_x - self.drag_start_x
+                self.scroll_velocity = -drag_distance * 4  -- Negative because we scroll opposite to drag
+            end
+        else
+            -- Dragging
+            if self.is_dragging then
+                local drag_distance = action.screen_x - self.drag_start_x
+                self.scroll_position = self.drag_start_scroll - drag_distance
+            end
+        end
+    end
+    
+    -- GUI will handle button clicks and send messages back to us
+end
+
+function launchGame(self, game_id)
+    -- Find the game data
+    local selected_game = nil
+    for _, game in ipairs(self.games) do
+        if game.id == game_id then
+            selected_game = game
+            break
+        end
+    end
+    
+    if selected_game then
+        print("🚀 Launching " .. selected_game.title .. "...")
+        
+        -- For now, just update game.project to launch the selected game
+        -- In a full implementation, you'd use collection proxies
+        if selected_game.collection then
+            -- Temporarily change the main collection (simple approach for testing)
+            print("Would launch: " .. selected_game.collection)
+            print("For now, manually update game.project main_collection to test individual games!")
+        end
+    else
+        print("ERROR: Game not found: " .. game_id)
+    end
+end
+
+function on_reload(self)
+    -- Hot reload support
+end
