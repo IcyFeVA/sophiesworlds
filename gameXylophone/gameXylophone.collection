@@ -1,4 +1,4 @@
-name: "default"
+name: "gameXylophone"
 instances {
   id: "xylophone"
   prototype: "/gameXylophone/go/xylophone.go"

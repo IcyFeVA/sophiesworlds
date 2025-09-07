@@ -111,12 +111,30 @@ end
 function on_message(self, message_id, message, sender)
     print("Controller: Received message: " .. tostring(message_id) .. " from: " .. tostring(sender))
     if message_id == hash("launch_game") then
-        print("Controller: Received launch_game message for game: " .. message.game_id)
+        print("Controller: Received launch_game message for game: " .. tostring(message.game_id))
+        print("Controller: Available games in controller:")
+        for i, game in ipairs(self.games) do
+            print("  Game " .. i .. ": " .. game.id .. " = " .. game.title)
+        end
         launchGame(self, message.game_id)
     elseif message_id == hash("proxy_loaded") then
         -- Collection proxy has loaded successfully
         print("✅ Game collection loaded successfully")
-        msg.post("#gameProxy", "enable")
+        print("Controller: Enabling loaded game collection")
+        -- Use the appropriate proxy based on the current game
+        local proxy_name = nil
+        if self.current_game == "bubbles" then
+            proxy_name = "gameProxyBubbles"
+        elseif self.current_game == "bubblewrap" then
+            proxy_name = "gameProxyWrap"
+        elseif self.current_game == "xylophone" then
+            proxy_name = "gameProxyXylophone"
+        end
+        if proxy_name then
+            msg.post(proxy_name .. "#" .. proxy_name, "enable")
+        end
+        -- The loaded game should now acquire its own input focus
+        print("Controller: Game collection enabled, input should now go to loaded game")
     elseif message_id == hash("proxy_unloaded") then
         -- Collection proxy has unloaded
         print("🔄 Game collection unloaded")
@@ -144,26 +162,34 @@ function on_input(self, action_id, action)
     if not self.current_game and action_id == hash("touch") then
         if action.pressed then
             print("Controller: Touch pressed at " .. action.screen_x .. ", " .. action.screen_y)
-            self.is_dragging = true
+            self.is_dragging = false  -- Reset dragging state
             self.drag_start_x = action.screen_x
             self.drag_start_scroll = self.scroll_position
+            self.drag_threshold = 10  -- Minimum distance to consider as drag
             self.scroll_velocity = 0
             -- Don't consume the input - let GUI also handle it
             return false
         elseif action.released then
-            if self.is_dragging then
+            -- Check if this was a drag or a tap
+            local drag_distance = math.abs(action.screen_x - self.drag_start_x)
+            if drag_distance > self.drag_threshold then
+                -- This was a drag, not a tap
                 self.is_dragging = false
                 -- Calculate final velocity based on drag distance and time
                 -- This creates momentum scrolling
-                local drag_distance = action.screen_x - self.drag_start_x
                 self.scroll_velocity = -drag_distance * 4  -- Negative because we scroll opposite to drag
+                print("Controller: Drag released, distance: " .. drag_distance)
+            else
+                -- This was a tap, not a drag
+                print("Controller: Tap detected, distance: " .. drag_distance)
             end
             -- Don't consume the input - let GUI also handle it
             return false
         else
             -- Dragging
-            if self.is_dragging then
-                local drag_distance = action.screen_x - self.drag_start_x
+            local drag_distance = action.screen_x - self.drag_start_x
+            if math.abs(drag_distance) > self.drag_threshold then
+                self.is_dragging = true
                 self.scroll_position = self.drag_start_scroll - drag_distance
                 
                 -- Immediately update GUI during dragging for smooth visual feedback
@@ -181,14 +207,27 @@ function on_input(self, action_id, action)
 end
 
 function launchGame(self, game_id)
-    print("Controller: launchGame called with game_id: " .. game_id)
+    print("=== CONTROLLER DEBUG ===")
+    print("Controller: launchGame called with game_id: " .. tostring(game_id))
+    print("Controller: Current games in memory:")
+    for i, game in ipairs(self.games) do
+        print("  [" .. i .. "] id='" .. game.id .. "' title='" .. game.title .. "' collection='" .. game.collection .. "'")
+    end
+    
     -- Find the game data
     local selected_game = nil
     for _, game in ipairs(self.games) do
+        print("Controller: Comparing '" .. tostring(game_id) .. "' with '" .. game.id .. "'")
         if game.id == game_id then
             selected_game = game
+            print("Controller: MATCH FOUND! Selected game: " .. game.title)
             break
         end
+    end
+    
+    if not selected_game then
+        print("Controller: ERROR - No game found with id: " .. tostring(game_id))
+        return
     end
 
     if selected_game then
@@ -197,18 +236,55 @@ function launchGame(self, game_id)
         -- Unload current game if any
         if self.current_game then
             print("Controller: Unloading current game: " .. self.current_game)
-            msg.post("#gameProxy", "unload")
+            -- Use the appropriate proxy based on the current game
+            local proxy_name = nil
+            if self.current_game == "bubbles" then
+                proxy_name = "gameProxyBubbles"
+            elseif self.current_game == "bubblewrap" then
+                proxy_name = "gameProxyWrap"
+            elseif self.current_game == "xylophone" then
+                proxy_name = "gameProxyXylophone"
+            end
+            if proxy_name then
+                msg.post(proxy_name .. "#" .. proxy_name, "unload")
+            end
             self.current_game = nil
         end
 
-        -- Load the selected game collection
+        -- Load the selected game collection using multiple proxies
         if selected_game.collection then
             print("Controller: Loading collection: " .. selected_game.collection)
-            msg.post("#gameProxy", "load")
+            -- Set the current game BEFORE loading to prevent race conditions
             self.current_game = game_id
-            -- Disable the game selector GUI
+            
+            -- Use the appropriate proxy based on the game
+            local proxy_name = nil
+            if game_id == "bubbles" then
+                proxy_name = "gameProxyBubbles"
+            elseif game_id == "bubblewrap" then
+                proxy_name = "gameProxyWrap"
+            elseif game_id == "xylophone" then
+                proxy_name = "gameProxyXylophone"
+            else
+                print("Controller: ERROR - Unknown game ID: " .. game_id)
+                return
+            end
+            
+            print("Controller: Using proxy: " .. proxy_name)
+            
+            -- Disable the game selector GUI first
             msg.post("gameSelector#gameSelector", "disable")
+            
+            -- Release input focus so the loaded game can handle input
+            print("Controller: Releasing input focus for loaded game")
+            msg.post(".", "release_input_focus")
+            
+            -- Load the collection using the appropriate proxy
+            print("Controller: Loading collection via proxy: " .. proxy_name)
+            msg.post(proxy_name .. "#" .. proxy_name, "load")
+
             print("✅ Loading " .. selected_game.title)
+            print("Controller: Using dedicated proxy for: " .. game_id)
         end
     else
         print("ERROR: Game not found: " .. game_id)
@@ -220,10 +296,25 @@ function returnToSelector(self)
     
     -- Unload current game if any
     if self.current_game then
-        msg.post("#gameProxy", "unload")
+        -- Use the appropriate proxy based on the current game
+        local proxy_name = nil
+        if self.current_game == "bubbles" then
+            proxy_name = "gameProxyBubbles"
+        elseif self.current_game == "bubblewrap" then
+            proxy_name = "gameProxyWrap"
+        elseif self.current_game == "xylophone" then
+            proxy_name = "gameProxyXylophone"
+        else
+            print("Controller: ERROR - Unknown current game: " .. tostring(self.current_game))
+            return
+        end
+        
+        print("Controller: Unloading game via proxy: " .. proxy_name)
+        msg.post(proxy_name .. "#" .. proxy_name, "unload")
         -- The proxy_unloaded message will re-enable the GUI
     else
         -- No game loaded, just enable the GUI
+        print("Controller: No game loaded, enabling GUI")
         msg.post("gameSelector#gameSelector", "enable")
     end
 end

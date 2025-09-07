@@ -167,37 +167,70 @@ function createGameButton(self, game, index)
 end
 
 function on_input(self, action_id, action)
-    print("GUI: on_input called with action_id: " .. tostring(action_id))
-    print("GUI: Action details - pressed: " .. tostring(action.pressed) .. ", released: " .. tostring(action.released))
-    
-    -- Handle button clicks directly (simple approach)
+    -- Only handle touch input when not dragging
     if action_id == hash("touch") and action.pressed then
         print("GUI: Touch pressed at " .. (action.x or "nil") .. ", " .. (action.y or "nil"))
-        print("GUI: Screen coordinates: " .. (action.screen_x or "nil") .. ", " .. (action.screen_y or "nil"))
         
         -- Use screen coordinates for better compatibility
         local touch_x = action.screen_x or action.x
         local touch_y = action.screen_y or action.y
+        
+        -- Store initial touch position for drag detection
+        self.touch_start_x = touch_x
+        self.touch_start_y = touch_y
+        self.touch_moved = false
+        self.drag_threshold = 10  -- Same as controller
         
         -- Check if touch is on any button
         for i, game in ipairs(self.games) do
             pcall(function()
                 local click_node = gui.get_node("game_button_" .. game.id)
                 if click_node and gui.pick_node(click_node, touch_x, touch_y) then
-                    print("GUI: Button clicked for game: " .. game.title)
-                    -- Button pressed - add press animation
-                    pcall(function()
-                        local bg_node = gui.get_node("game_button_bg_" .. game.id)
-                        gui.animate(bg_node, gui.PROP_SCALE, vmath.vector3(0.9, 0.9, 1), gui.EASING_OUTQUAD, 0.1, 0, function()
-                            gui.animate(bg_node, gui.PROP_SCALE, vmath.vector3(1.0, 1.0, 1), gui.EASING_OUTQUAD, 0.1)
-                        end)
-                    end)
-                    
-                    -- Launch the game
-                    msg.post("controller#controller", "launch_game", {game_id = game.id})
+                    print("GUI: Button touched for game: " .. game.title)
+                    -- Store which button was touched
+                    self.touched_game = game
                     return true  -- Consume the input
                 end
             end)
+        end
+    elseif action_id == hash("touch") and action.released then
+        -- Only process as click if we didn't move much (not a drag)
+        if self.touched_game and not self.touch_moved then
+            local touch_x = action.screen_x or action.x
+            local touch_y = action.screen_y or action.y
+            local move_distance = math.abs(touch_x - self.touch_start_x) + math.abs(touch_y - self.touch_start_y)
+            
+            if move_distance < self.drag_threshold then
+                print("GUI: Button clicked for game: " .. self.touched_game.title)
+                -- Button clicked - add press animation
+                pcall(function()
+                    local bg_node = gui.get_node("game_button_bg_" .. self.touched_game.id)
+                    gui.animate(bg_node, gui.PROP_SCALE, vmath.vector3(0.9, 0.9, 1), gui.EASING_OUTQUAD, 0.1, 0, function()
+                        gui.animate(bg_node, gui.PROP_SCALE, vmath.vector3(1.0, 1.0, 1), gui.EASING_OUTQUAD, 0.1)
+                    end)
+                end)
+                
+                -- Launch the game
+                print("GUI: SENDING launch_game for game ID: " .. tostring(self.touched_game.id))
+                msg.post("controller#controller", "launch_game", {game_id = self.touched_game.id})
+            end
+        end
+        -- Reset touch state
+        self.touched_game = nil
+        self.touch_moved = false
+        return true  -- Consume the release
+    elseif action_id == hash("touch") then
+        -- Touch moved - check if it's becoming a drag
+        if self.touched_game then
+            local touch_x = action.screen_x or action.x
+            local touch_y = action.screen_y or action.y
+            local move_distance = math.abs(touch_x - self.touch_start_x) + math.abs(touch_y - self.touch_start_y)
+            
+            if move_distance > self.drag_threshold then
+                self.touch_moved = true
+                -- Cancel button touch since it's now a drag
+                self.touched_game = nil
+            end
         end
     end
     
