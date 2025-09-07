@@ -109,6 +109,7 @@ end
 
 function on_message(self, message_id, message, sender)
     if message_id == hash("launch_game") then
+        print("Controller: Received launch_game message for game: " .. message.game_id)
         launchGame(self, message.game_id)
     elseif message_id == hash("proxy_loaded") then
         -- Collection proxy has loaded successfully
@@ -155,6 +156,11 @@ function on_input(self, action_id, action)
             if self.is_dragging then
                 local drag_distance = action.screen_x - self.drag_start_x
                 self.scroll_position = self.drag_start_scroll - drag_distance
+                
+                -- Immediately update GUI during dragging for smooth visual feedback
+                msg.post("gameSelector#gameSelector", "update_scroll", {
+                    scroll_position = self.scroll_position
+                })
             end
         end
     end
