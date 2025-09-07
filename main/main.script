@@ -1,5 +1,7 @@
 function init(self)
+	print("Main script initialized")
 	local sysinfo = sys.get_sys_info()
+	print("Platform: " .. sysinfo.system_name)
 	if sysinfo.system_name == "Android" then
 		msg.post("#", "push_android")
 	elseif sysinfo.system_name == "iPhone OS" then

@@ -7,7 +7,7 @@ dependencies#1 = https://github.com/britzl/defold-input/archive/master.zip
 dependencies#2 = https://github.com/britzl/gooey/archive/master.zip
 
 [bootstrap]
-main_collection = /gameBubbleWrap/gameBubbleWrap.collectionc
+main_collection = /gameSelector/gameSelector.collectionc
 render = /rendercam/rendercam.renderc
 
 [input]

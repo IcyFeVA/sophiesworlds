@@ -1,6 +1,7 @@
 local data = require "main.data"
 
 function init(self)
+    print("Game Selector Controller: Initializing...")
     msg.post(".", "acquire_input_focus")
     
     -- Game data with information about each available minigame
@@ -108,6 +109,7 @@ function update(self, dt)
 end
 
 function on_message(self, message_id, message, sender)
+    print("Controller: Received message: " .. tostring(message_id) .. " from: " .. tostring(sender))
     if message_id == hash("launch_game") then
         print("Controller: Received launch_game message for game: " .. message.game_id)
         launchGame(self, message.game_id)
@@ -124,6 +126,8 @@ function on_message(self, message_id, message, sender)
     elseif message_id == hash("return_to_selector") then
         -- Return to game selector from a game
         returnToSelector(self)
+    else
+        print("Controller: Unknown message received: " .. tostring(message_id))
     end
 end
 
@@ -139,10 +143,13 @@ function on_input(self, action_id, action)
     -- Handle touch/mouse input for scrolling (only when no game is loaded)
     if not self.current_game and action_id == hash("touch") then
         if action.pressed then
+            print("Controller: Touch pressed at " .. action.screen_x .. ", " .. action.screen_y)
             self.is_dragging = true
             self.drag_start_x = action.screen_x
             self.drag_start_scroll = self.scroll_position
             self.scroll_velocity = 0
+            -- Don't consume the input - let GUI also handle it
+            return false
         elseif action.released then
             if self.is_dragging then
                 self.is_dragging = false
@@ -151,6 +158,8 @@ function on_input(self, action_id, action)
                 local drag_distance = action.screen_x - self.drag_start_x
                 self.scroll_velocity = -drag_distance * 4  -- Negative because we scroll opposite to drag
             end
+            -- Don't consume the input - let GUI also handle it
+            return false
         else
             -- Dragging
             if self.is_dragging then
@@ -162,6 +171,8 @@ function on_input(self, action_id, action)
                     scroll_position = self.scroll_position
                 })
             end
+            -- Don't consume the input - let GUI also handle it
+            return false
         end
     end
     
@@ -170,6 +181,7 @@ function on_input(self, action_id, action)
 end
 
 function launchGame(self, game_id)
+    print("Controller: launchGame called with game_id: " .. game_id)
     -- Find the game data
     local selected_game = nil
     for _, game in ipairs(self.games) do
@@ -184,12 +196,14 @@ function launchGame(self, game_id)
 
         -- Unload current game if any
         if self.current_game then
+            print("Controller: Unloading current game: " .. self.current_game)
             msg.post("#gameProxy", "unload")
             self.current_game = nil
         end
 
         -- Load the selected game collection
         if selected_game.collection then
+            print("Controller: Loading collection: " .. selected_game.collection)
             msg.post("#gameProxy", "load")
             self.current_game = game_id
             -- Disable the game selector GUI
