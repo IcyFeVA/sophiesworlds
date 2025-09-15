@@ -1,5 +1,9 @@
 mouse_trigger {
-  input: MOUSE_BUTTON_1
+  input: MOUSE_BUTTON_LEFT
+  action: "touch"
+}
+touch_trigger {
+  input: TOUCH_SINGLE
   action: "touch"
 }
 touch_trigger {

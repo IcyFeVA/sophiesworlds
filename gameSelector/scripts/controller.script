@@ -132,6 +132,10 @@ function on_message(self, message_id, message, sender)
         end
         if proxy_name then
             msg.post(proxy_name .. "#" .. proxy_name, "enable")
+            -- Give the loaded game a moment to acquire input focus
+            timer.delay(0.1, false, function()
+                print("Controller: Input focus should now be with the loaded game")
+            end)
         end
         -- The loaded game should now acquire its own input focus
         print("Controller: Game collection enabled, input should now go to loaded game")
@@ -140,7 +144,10 @@ function on_message(self, message_id, message, sender)
         print("🔄 Game collection unloaded")
         -- Re-enable the game selector GUI
         msg.post("gameSelector#gameSelector", "enable")
+        -- Re-acquire input focus for the game selector
+        msg.post(".", "acquire_input_focus")
         self.current_game = nil
+        print("Controller: Returned to game selector, input focus restored")
     elseif message_id == hash("return_to_selector") then
         -- Return to game selector from a game
         returnToSelector(self)
@@ -157,9 +164,14 @@ function on_input(self, action_id, action)
             return true  -- Consume the input
         end
     end
-    
+
+    -- When a game is loaded, don't consume any input - let it pass through to the game
+    if self.current_game then
+        return false
+    end
+
     -- Handle touch/mouse input for scrolling (only when no game is loaded)
-    if not self.current_game and action_id == hash("touch") then
+    if action_id == hash("touch") then
         if action.pressed then
             print("Controller: Touch pressed at " .. action.screen_x .. ", " .. action.screen_y)
             self.is_dragging = false  -- Reset dragging state
@@ -191,7 +203,7 @@ function on_input(self, action_id, action)
             if math.abs(drag_distance) > self.drag_threshold then
                 self.is_dragging = true
                 self.scroll_position = self.drag_start_scroll - drag_distance
-                
+
                 -- Immediately update GUI during dragging for smooth visual feedback
                 msg.post("gameSelector#gameSelector", "update_scroll", {
                     scroll_position = self.scroll_position
@@ -201,7 +213,7 @@ function on_input(self, action_id, action)
             return false
         end
     end
-    
+
     -- GUI will handle button clicks and send messages back to us
     return false
 end
