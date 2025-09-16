@@ -13,8 +13,9 @@ function init(self)
 	go.set("#sprite", "tint.w", 0)
 	go.animate("#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 0.8, go.EASING_OUTQUAD, 0.3)
 	
-	-- Auto-pop after 0.3 seconds
-	timer.delay(0.3, false, function()
+	-- Auto-pop after 2-4 seconds for better visual experience
+	local popTime = 2 + math.random() * 2
+	timer.delay(popTime, false, function()
 		-- Create pop effect
 		local pos = go.get_position()
 		msg.post("/controller#controller", "bubble_popped", {position = pos})

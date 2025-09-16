@@ -4,9 +4,8 @@ local data = require "main.data"
 
 function init(self)
 	print("SoapBubblesDraw game: Initializing...")
-	msg.post(".", "acquire_input_focus")
-	print("SoapBubblesDraw game: Input focus acquired!")
-
+	-- Don't acquire input focus - input comes from main script
+	
 	rendercam = require "rendercam.rendercam"
 	lastTouchPos = vmath.vector3()
 	
@@ -20,7 +19,8 @@ function init(self)
 	
 	-- Bubble creation parameters
 	self.bubbleSpawnTimer = 0
-	self.bubbleSpawnInterval = 0.1 -- Create bubble every 0.1 seconds while drawing
+	self.bubbleSpawnInterval = 0.03 -- Create bubble every 0.03 seconds while drawing
+	self.lastBubbleTimer = 0 -- Track when last bubble was created
 	
 	print("SoapBubblesDraw game: Initialization complete!")
 end
@@ -30,7 +30,7 @@ function final(self)
 end
 
 function update(self, dt)
-	-- Update bubble spawn timer
+	-- Update bubble spawn timer only while actively drawing
 	if self.isDrawing and #self.drawPath > 0 then
 		self.bubbleSpawnTimer = self.bubbleSpawnTimer + dt
 		if self.bubbleSpawnTimer >= self.bubbleSpawnInterval then
@@ -38,6 +38,9 @@ function update(self, dt)
 			spawn_bubble_at_path(self)
 		end
 	end
+	
+	-- Update last bubble timer
+	self.lastBubbleTimer = self.lastBubbleTimer + dt
 end
 
 function on_message(self, message_id, message, sender)
@@ -45,7 +48,10 @@ function on_message(self, message_id, message, sender)
 		print("SoapBubblesDraw game: Returning to selector")
 		msg.post("main:/go#main", "return_to_selector")
 	elseif message_id == hash("input") then
-		print("SoapBubblesDraw: Received forwarded input")
+		-- Only log on press/release to reduce spam
+		if message.action.pressed or message.action.released then
+			print("SoapBubblesDraw: Received forwarded input")
+		end
 		handle_input(self, message.action_id, message.action)
 	elseif message_id == hash("bubble_popped") then
 		-- A bubble was successfully popped
@@ -71,6 +77,12 @@ function handle_input(self, action_id, action)
 				self.isDrawing = true
 				self.lastDrawPos = worldPos
 				self.drawPath = {worldPos}
+				
+				-- Create initial bubble on tap/click
+				if self.lastBubbleTimer >= self.bubbleSpawnInterval then
+					spawn_bubble_at_path(self)
+					self.lastBubbleTimer = 0
+				end
 				
 				-- Store touch for tracking
 				local touch_id = action.touch_id or 1
@@ -101,9 +113,7 @@ function handle_input(self, action_id, action)
 	return true
 end
 
-function on_input(self, action_id, action)
-	return handle_input(self, action_id, action)
-end
+
 
 function spawn_bubble_at_path(self)
 	if #self.drawPath > 0 then
