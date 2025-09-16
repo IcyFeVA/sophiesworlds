@@ -20,7 +20,6 @@ function init(self)
 	-- Bubble creation parameters
 	self.bubbleSpawnTimer = 0
 	self.bubbleSpawnInterval = 0.03 -- Create bubble every 0.03 seconds while drawing
-	self.lastBubbleTimer = 0 -- Track when last bubble was created
 	
 	print("SoapBubblesDraw game: Initialization complete!")
 end
@@ -30,17 +29,14 @@ function final(self)
 end
 
 function update(self, dt)
-	-- Update bubble spawn timer only while actively drawing
-	if self.isDrawing and #self.drawPath > 0 then
+	-- Update bubble spawn timer only while actively drawing AND moving
+	if self.isDrawing and #self.drawPath > 1 then -- Only spawn during movement, not single clicks
 		self.bubbleSpawnTimer = self.bubbleSpawnTimer + dt
 		if self.bubbleSpawnTimer >= self.bubbleSpawnInterval then
 			self.bubbleSpawnTimer = 0
 			spawn_bubble_at_path(self)
 		end
 	end
-	
-	-- Update last bubble timer
-	self.lastBubbleTimer = self.lastBubbleTimer + dt
 end
 
 function on_message(self, message_id, message, sender)
@@ -74,15 +70,14 @@ function handle_input(self, action_id, action)
 			-- Start drawing
 			local worldPos = rendercam.screen_to_world_2d(action.screen_x, action.screen_y)
 			if worldPos then
+				-- Create initial bubble on tap/click immediately
+				spawn_bubble_at_position(self, worldPos)
+				
+				-- Set up drawing state for continuous drawing
 				self.isDrawing = true
 				self.lastDrawPos = worldPos
 				self.drawPath = {worldPos}
-				
-				-- Create initial bubble on tap/click
-				if self.lastBubbleTimer >= self.bubbleSpawnInterval then
-					spawn_bubble_at_path(self)
-					self.lastBubbleTimer = 0
-				end
+				self.bubbleSpawnTimer = 0 -- Reset timer for continuous drawing
 				
 				-- Store touch for tracking
 				local touch_id = action.touch_id or 1
@@ -115,19 +110,23 @@ end
 
 
 
+function spawn_bubble_at_position(self, position)
+	-- Add some randomness to the position
+	local offsetX = math.random(-15, 15)
+	local offsetY = math.random(-15, 15)
+	local spawnPos = position + vmath.vector3(offsetX, offsetY, 0)
+	
+	-- Create bubble via spawner
+	msg.post("/spawner#spawner", "spawn_bubble", {position = spawnPos})
+end
+
 function spawn_bubble_at_path(self)
 	if #self.drawPath > 0 then
 		-- Get a random position from the current draw path
 		local pathIndex = math.random(1, #self.drawPath)
 		local spawnPos = self.drawPath[pathIndex]
 		
-		-- Add some randomness to the position
-		local offsetX = math.random(-30, 30)
-		local offsetY = math.random(-30, 30)
-		spawnPos = spawnPos + vmath.vector3(offsetX, offsetY, 0)
-		
-		-- Create bubble via spawner
-		msg.post("/spawner#spawner", "spawn_bubble", {position = spawnPos})
+		spawn_bubble_at_position(self, spawnPos)
 	end
 end
 
