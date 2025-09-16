@@ -1,0 +1,44 @@
+local data = require("main.data")
+
+function init(self)
+	-- Soap bubble properties with gentle animations
+	self.floatSpeed = 40 + math.random(20)
+	self.swayAmount = 8 + math.random(12)
+	self.swaySpeed = 0.6 + math.random() * 0.8
+	self.startPos = go.get_position()
+	self.time = 0
+	self.id = go.get_id()
+	
+	-- Gentle fade in
+	go.set("#sprite", "tint.w", 0)
+	go.animate("#sprite", "tint.w", go.PLAYBACK_ONCE_FORWARD, 0.8, go.EASING_OUTQUAD, 0.3)
+	
+	-- Auto-pop after 0.3 seconds
+	timer.delay(0.3, false, function()
+		-- Create pop effect
+		local pos = go.get_position()
+		msg.post("/controller#controller", "bubble_popped", {position = pos})
+		msg.post("/spawner#spawner", "remove_bubble", {id = self.id})
+		go.delete(self.id)
+	end)
+end
+
+function update(self, dt)
+	self.time = self.time + dt
+	
+	-- Float upward with gentle swaying motion
+	local pos = go.get_position()
+	pos.y = pos.y + self.floatSpeed * dt
+	pos.x = self.startPos.x + math.sin(self.time * self.swaySpeed) * self.swayAmount
+	go.set_position(pos)
+	
+	-- Remove when off screen (backup cleanup)
+	if pos.y > data.SH + 100 then
+		msg.post("/spawner#spawner", "remove_bubble", {id = self.id})
+		go.delete(self.id)
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	-- No collision detection needed - bubbles auto-pop
+end

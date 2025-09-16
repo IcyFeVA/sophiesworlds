@@ -1,0 +1,48 @@
+local data = require "main.data"
+
+function init(self)
+	print("SoapBubblesDraw Spawner: Initializing...")
+	self.bubbles = {}
+	self.bubbleCount = 0
+	print("SoapBubblesDraw Spawner: Ready")
+end
+
+function update(self, dt)
+	-- No more constant bubble checking - let bubbles manage themselves
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("spawn_bubble") then
+		spawn_bubble(self, message.position)
+	elseif message_id == hash("remove_bubble") then
+		remove_bubble(self, message.id)
+	end
+end
+
+function spawn_bubble(self, position)
+	-- Limit number of bubbles on screen
+	if self.bubbleCount >= 50 then
+		return
+	end
+	
+	-- Create bubble with smaller random properties
+	local scale = math.random(40, 90) / 100
+	local bubble_id = factory.create("#bubble_factory", position, nil, {}, scale)
+	
+	if bubble_id then
+		table.insert(self.bubbles, bubble_id)
+		self.bubbleCount = self.bubbleCount + 1
+		
+		print("SoapBubblesDraw Spawner: Created bubble at " .. position.x .. ", " .. position.y)
+	end
+end
+
+function remove_bubble(self, bubble_id)
+	for i, id in ipairs(self.bubbles) do
+		if id == bubble_id then
+			table.remove(self.bubbles, i)
+			self.bubbleCount = self.bubbleCount - 1
+			break
+		end
+	end
+end

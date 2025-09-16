@@ -1,0 +1,50 @@
+local data = require "main.data"
+
+function init(self)
+	print("SoapBubblesDraw ParticleSpawner: Initializing...")
+	self.particles = {}
+end
+
+function update(self, dt)
+	-- Clean up old particles
+	for i = #self.particles, 1, -1 do
+		local particle_id = self.particles[i]
+		if particle_id then
+			-- Safely check if particle still exists
+			local success, pos = pcall(go.get_position, particle_id)
+			if not success or not pos then
+				-- Particle was deleted, remove from list
+				table.remove(self.particles, i)
+			end
+		else
+			table.remove(self.particles, i)
+		end
+	end
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("POP") then
+		spawn_pop_effect(self)
+	end
+end
+
+function spawn_pop_effect(self)
+	-- Get the last touch position from the controller
+	local pos = lastTouchPos or vmath.vector3(0, 0, 0)
+	
+	-- Create pop particle effect
+	local particle_id = factory.create("#particle_factory", pos)
+	
+	if particle_id then
+		table.insert(self.particles, particle_id)
+		
+		-- Auto-delete particle after 2 seconds
+		timer.delay(2.0, false, function()
+			if particle_id then
+				go.delete(particle_id)
+			end
+		end)
+		
+		print("SoapBubblesDraw ParticleSpawner: Created pop effect at " .. pos.x .. ", " .. pos.y)
+	end
+end
