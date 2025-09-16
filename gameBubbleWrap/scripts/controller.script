@@ -1,7 +1,9 @@
 local data = require "main.data"
 
 function init(self)
+	print("Bubble Wrap game: Initializing...")
 	msg.post(".", "acquire_input_focus")
+	print("Bubble Wrap game: Input focus acquired!")
 	
 	rendercam = require "rendercam.rendercam"
 	
@@ -34,13 +36,30 @@ function on_message(self, message_id, message, sender)
 		-- All bubbles have been popped! Could add screen flash or other celebration
 		print("🎆 Congratulations! All bubbles popped! New ones coming soon...")
 		-- Could add visual effects here like screen flash or particle burst
+	elseif message_id == hash("return_to_selector") then
+		-- Return to game selector
+		print("Bubble Wrap game: Returning to selector")
+		msg.post("main:/go#main", "return_to_selector")
+	elseif message_id == hash("input") then
+		-- Handle forwarded input from main
+		print("Bubble Wrap: Received forwarded input")
+		handle_input(self, message.action_id, message.action)
 	end
 end
 
-function on_input(self, action_id, action)
+function handle_input(self, action_id, action)
+	print("Bubble Wrap: Handling input: " .. tostring(action_id))
+	
+	-- Handle escape key to return to selector
+	if action_id == hash("key_esc") and action.pressed then
+		msg.post(".", "return_to_selector")
+		return true
+	end
+	
 	-- Handle multitouch properly
 	if action_id == hash("touch") or action_id == hash("multitouch") then
 		if action.pressed then
+			print("Bubble Wrap: Touch at " .. (action.screen_x or 0) .. ", " .. (action.screen_y or 0))
 			-- Store touch ID for tracking (use 1 for mouse if touch_id is not available)
 			local touch_id = action.touch_id or 1
 			self.activeTouches[touch_id] = {x = action.x, y = action.y}
@@ -56,6 +75,10 @@ function on_input(self, action_id, action)
 	if action.screen_x and action.screen_y and (action.pressed or action.released) then
 		popBubble(self, action)
 	end
+end
+
+function on_input(self, action_id, action)
+	return handle_input(self, action_id, action)
 end
 
 function popBubble(self, tapPos)

@@ -1,0 +1,15 @@
+-- Simple input test - bypass proxies entirely
+
+function init(self)
+    print("Simple Test: Initializing...")
+    msg.post(".", "acquire_input_focus")
+    print("Simple Test: Input focus acquired")
+end
+
+function on_input(self, action_id, action)
+    if action_id == hash("touch") then
+        if action.pressed then
+            print("Simple Test: TOUCH WORKS! At " .. (action.screen_x or 0) .. ", " .. (action.screen_y or 0))
+        end
+    end
+end

@@ -3,7 +3,11 @@ math.randomseed(os.time())
 local data = require "main.data"
 
 function init(self)
+	print("Bubbles game: Initializing...")
+	print("Bubbles game: About to acquire input focus...")
 	msg.post(".", "acquire_input_focus")
+	print("Bubbles game: Input focus acquired!")
+	print("Bubbles game: Initialization complete!")
 
 	rendercam = require "rendercam.rendercam"
 	
@@ -33,6 +37,14 @@ function on_message(self, message_id, message, sender)
 	elseif message_id == hash("bubbles_list") then
 		-- Store the bubbles list for use in deleteBubble function
 		self.current_bubbles = message.bubbles
+	elseif message_id == hash("acquire_input_focus") then
+		-- Explicitly acquire input focus when requested by gameSelector
+		print("Bubbles game: Acquiring input focus on request")
+		msg.post(".", "acquire_input_focus")
+	elseif message_id == hash("release_input_focus") then
+		-- Explicitly release input focus when requested by gameSelector
+		print("Bubbles game: Releasing input focus on request")
+		msg.post(".", "release_input_focus")
 	end
 end
 
@@ -40,6 +52,7 @@ function on_input(self, action_id, action)
 	-- Handle multitouch properly
 	if action_id == hash("touch") or action_id == hash("multitouch") then
 		if action.pressed then
+			print("Bubbles: Touch at " .. (action.screen_x or 0) .. ", " .. (action.screen_y or 0))
 			-- Store touch ID for tracking (use 1 for mouse if touch_id is not available)
 			local touch_id = action.touch_id or 1
 			self.activeTouches[touch_id] = {x = action.x, y = action.y}

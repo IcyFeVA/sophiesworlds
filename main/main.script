@@ -7,8 +7,87 @@ function init(self)
 	elseif sysinfo.system_name == "iPhone OS" then
 		msg.post("#", "push_ios")
 	end
+	
+	-- Acquire input focus to route input to loaded collections
+	msg.post(".", "acquire_input_focus")
+	
+	-- Start by loading the game selector
+	print("Main: Loading gameSelector")
+	msg.post("gameSelectorProxy#gameSelectorProxy", "load")
+	
+	self.current_collection = "gameSelector"
+end
+
+function on_message(self, message_id, message, sender)
+	if message_id == hash("proxy_loaded") then
+		print("Main: Proxy loaded, enabling it")
+		msg.post(sender, "enable")
+	elseif message_id == hash("launch_game") then
+		-- Unload current collection and load the requested game
+		print("Main: Launching game: " .. message.game_id)
+		
+		-- First unload gameSelector
+		msg.post("gameSelectorProxy#gameSelectorProxy", "unload")
+		
+		-- Then load the requested game
+		if message.game_id == "bubbles" then
+			msg.post("gameBubblesProxy#gameBubblesProxy", "load")
+			self.current_collection = "gameBubbles"
+		elseif message.game_id == "bubblewrap" then
+			msg.post("gameBubbleWrapProxy#gameBubbleWrapProxy", "load")
+			self.current_collection = "gameBubbleWrap"
+		elseif message.game_id == "xylophone" then
+			msg.post("gameXylophoneProxy#gameXylophoneProxy", "load")
+			self.current_collection = "gameXylophone"
+		end
+	elseif message_id == hash("return_to_selector") then
+		-- Unload current game and return to selector
+		print("Main: Returning to gameSelector")
+		
+		-- Unload all game proxies
+		msg.post("gameBubblesProxy#gameBubblesProxy", "unload")
+		msg.post("gameBubbleWrapProxy#gameBubbleWrapProxy", "unload")
+		msg.post("gameXylophoneProxy#gameXylophoneProxy", "unload")
+		
+		-- Load gameSelector
+		msg.post("gameSelectorProxy#gameSelectorProxy", "load")
+		self.current_collection = "gameSelector"
+	end
 end
 
 function on_input(self, action_id, action)
-
+	-- Route input to the currently loaded collection
+	if self.current_collection == "gameSelector" then
+		-- Forward input to gameSelector
+		if action_id == hash("touch") then
+			print("Main: Forwarding touch to gameSelector GUI")
+			msg.post("default:/gameSelector#gameSelector", "input", {action_id = action_id, action = action})
+		end
+	elseif self.current_collection == "gameBubbleWrap" then
+		-- Forward input to gameBubbleWrap
+		if action_id == hash("touch") then
+			print("Main: Forwarding touch to gameBubbleWrap")
+			msg.post("gameBubbleWrap:/controller#controller", "input", {action_id = action_id, action = action})
+		end
+	elseif self.current_collection == "gameBubbles" then
+		-- Forward input to gameBubbles
+		if action_id == hash("touch") then
+			print("Main: Forwarding touch to gameBubbles")
+			msg.post("gameBubbles:/controller#controller", "input", {action_id = action_id, action = action})
+		end
+	elseif self.current_collection == "gameXylophone" then
+		-- Forward input to gameXylophone
+		if action_id == hash("touch") then
+			print("Main: Forwarding touch to gameXylophone")
+			msg.post("gameXylophone:/controller#controller", "input", {action_id = action_id, action = action})
+		end
+	end
+	
+	-- Handle escape key globally to return to selector
+	if action_id == hash("key_esc") and action.pressed then
+		msg.post(".", "return_to_selector")
+		return true
+	end
+	
+	return true -- Consume all input
 end

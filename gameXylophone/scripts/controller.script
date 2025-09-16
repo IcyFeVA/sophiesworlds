@@ -1,6 +1,9 @@
 function init(self)
+	print("Xylophone game: Initializing...")
+	print("Xylophone game: About to acquire input focus...")
 	msg.post(".", "acquire_input_focus")
-	print("Xylophone game initialized!")
+	print("Xylophone game: Input focus acquired!")
+	print("Xylophone game: Initialization complete!")
 end
 
 function final(self)
@@ -18,12 +21,17 @@ end
 function on_message(self, message_id, message, sender)
 	if message_id == hash("window_resized") then
 		print('window resized to ' .. message.width .. ' x ' .. message.height)
+	elseif message_id == hash("acquire_input_focus") then
+		-- Explicit request to acquire input focus (from gameSelector)
+		print("Xylophone game: Received explicit acquire_input_focus request")
+		msg.post(".", "acquire_input_focus")
+		print("Xylophone game: Input focus re-acquired!")
 	end
 end
 
 function on_input(self, action_id, action)
 	if action_id == hash("touch") and action.pressed then
-		print("Xylophone: Touch received at " .. action.screen_x .. ", " .. action.screen_y)
+		print("Xylophone: Touch at " .. (action.screen_x or 0) .. ", " .. (action.screen_y or 0))
 		-- TODO: Add xylophone key interaction logic here
 	end
 end
