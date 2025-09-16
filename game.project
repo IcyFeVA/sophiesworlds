@@ -7,11 +7,11 @@ dependencies#1 = https://github.com/britzl/defold-input/archive/master.zip
 dependencies#2 = https://github.com/britzl/gooey/archive/master.zip
 
 [bootstrap]
-main_collection = /main/main.collectionc
+main_collection = /gameFireworks/gameFireworks.collectionc
 render = /rendercam/rendercam.renderc
 
 [input]
-game_binding = /builtins/input/all.input_bindingc 
+game_binding = /builtins/input/all.input_bindingc
 use_accelerometer = 0
 
 [display]

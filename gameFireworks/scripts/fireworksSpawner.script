@@ -1,11 +1,17 @@
 -- Fireworks Spawner Script
 -- Manages firework particle effects and cleanup
 
+math.randomseed(os.time())
+
 function init(self)
     print("Fireworks Spawner: Initializing...")
     
-    -- Track active firework effects
+    -- Track active firework effects for cleanup
     self.activeEffects = {}
+    self.effectTimers = {}
+    
+    -- Maximum active fireworks for performance
+    self.maxActiveEffects = 10
     
     -- Color palette for fireworks
     self.colors = {
@@ -19,37 +25,164 @@ function init(self)
         {r = 0.8, g = 0.2, b = 1.0}   -- Purple
     }
     
-    print("Fireworks Spawner: Ready")
+    -- Firework properties for variation
+    self.fireworkProperties = {
+        particle_count_range = {min = 20, max = 50},
+        explosion_size_range = {min = 80, max = 150},
+        particle_lifetime_range = {min = 1.0, max = 2.5}
+    }
+    
+    print("Fireworks Spawner: Ready with " .. #self.colors .. " colors")
 end
 
 function final(self)
+    print("Fireworks Spawner: Cleaning up...")
+    
     -- Clean up any remaining effects
-    for _, effect_id in ipairs(self.activeEffects) do
-        if go.exists(effect_id) then
-            go.delete(effect_id)
+    for _, effect_data in ipairs(self.activeEffects) do
+        if go.exists(effect_data.id) then
+            go.delete(effect_data.id)
         end
     end
+    
+    -- Cancel any remaining timers
+    for _, timer_id in pairs(self.effectTimers) do
+        timer.cancel(timer_id)
+    end
+    
+    print("Fireworks Spawner: Cleanup complete")
 end
 
 function update(self, dt)
-    -- Update logic will be added later
+    -- Periodic cleanup of completed effects
+    cleanup_completed_effects(self)
 end
 
 function on_message(self, message_id, message, sender)
     if message_id == hash("spawn_firework") then
         print("Fireworks Spawner: Spawning firework at " .. message.position.x .. ", " .. message.position.y)
-        spawn_firework(self, message.position)
+        spawn_firework(self, message.position, message.screen_position)
+    elseif message_id == hash("cleanup_effect") then
+        -- Handle cleanup message from timer
+        cleanup_specific_effect(self, message.effect_id)
     end
 end
 
-function spawn_firework(self, position)
-    -- TODO: Implement actual firework spawning
-    -- This will be implemented when we create the particle effects
-    
-    -- Placeholder: Just print for now
-    print("Fireworks Spawner: Would create firework at " .. position.x .. ", " .. position.y)
+function spawn_firework(self, position, screen_position)
+    -- Check if we've reached maximum active effects
+    if #self.activeEffects >= self.maxActiveEffects then
+        print("Fireworks Spawner: Maximum effects reached, removing oldest")
+        remove_oldest_effect(self)
+    end
     
     -- Select random color
     local color = self.colors[math.random(#self.colors)]
     print("Fireworks Spawner: Using color R:" .. color.r .. " G:" .. color.g .. " B:" .. color.b)
+    
+    -- Create firework particle effect at position
+    local firework_id = create_firework_effect(self, position, color)
+    
+    if firework_id then
+        -- Track the new effect
+        local effect_data = {
+            id = firework_id,
+            position = position,
+            color = color,
+            creation_time = socket.gettime and socket.gettime() or os.time(),
+            lifetime = 3.0  -- Total effect duration
+        }
+        
+        table.insert(self.activeEffects, effect_data)
+        
+        -- Set up automatic cleanup timer
+        local cleanup_timer = timer.delay(effect_data.lifetime, false, function()
+            cleanup_specific_effect(self, firework_id)
+        end)
+        
+        self.effectTimers[firework_id] = cleanup_timer
+        
+        -- Notify controller that firework was created
+        msg.post("/controller#controller", "firework_created", {firework_id = firework_id})
+        
+        print("Fireworks Spawner: Created firework " .. tostring(firework_id) .. " (Active: " .. #self.activeEffects .. ")")
+    else
+        print("Fireworks Spawner: Failed to create firework effect")
+    end
+end
+
+function create_firework_effect(self, position, color)
+    -- Create particle effect game object
+    local firework_go = factory.create("#firework_factory", position)
+    
+    if not firework_go then
+        print("Fireworks Spawner: Failed to create firework game object")
+        return nil
+    end
+    
+    -- Get the particle effect component and apply color
+    local particlefx_url = msg.url(firework_go, "particlefx", "fireworks")
+    
+    -- Set particle colors for all emitters
+    particlefx.set_constant(particlefx_url, "explosion_burst", "tint", vmath.vector4(color.r, color.g, color.b, 1.0))
+    particlefx.set_constant(particlefx_url, "sparkle_trail", "tint", vmath.vector4(color.r * 0.9, color.g * 0.9, color.b * 0.9, 1.0))
+    particlefx.set_constant(particlefx_url, "flash_effect", "tint", vmath.vector4(1.0, 1.0, 1.0, 1.0))  -- Keep flash white
+    
+    -- Start the particle effect
+    particlefx.play(particlefx_url)
+    
+    print("Fireworks Spawner: Started particle effect for " .. tostring(firework_go))
+    return firework_go
+end
+
+function cleanup_specific_effect(self, effect_id)
+    -- Find and remove the effect from active list
+    for i, effect_data in ipairs(self.activeEffects) do
+        if effect_data.id == effect_id then
+            -- Delete the game object if it still exists
+            if go.exists(effect_id) then
+                go.delete(effect_id)
+            end
+            
+            -- Remove from active effects
+            table.remove(self.activeEffects, i)
+            
+            -- Cancel and remove timer
+            if self.effectTimers[effect_id] then
+                timer.cancel(self.effectTimers[effect_id])
+                self.effectTimers[effect_id] = nil
+            end
+            
+            -- Notify controller that firework completed
+            msg.post("/controller#controller", "firework_completed", {firework_id = effect_id})
+            
+            print("Fireworks Spawner: Cleaned up firework " .. tostring(effect_id) .. " (Active: " .. #self.activeEffects .. ")")
+            break
+        end
+    end
+end
+
+function cleanup_completed_effects(self)
+    -- Remove effects that no longer exist
+    local current_time = socket.gettime and socket.gettime() or os.time()
+    
+    for i = #self.activeEffects, 1, -1 do
+        local effect_data = self.activeEffects[i]
+        
+        -- Check if effect still exists or has exceeded lifetime
+        if not go.exists(effect_data.id) or (current_time - effect_data.creation_time) > effect_data.lifetime then
+            cleanup_specific_effect(self, effect_data.id)
+        end
+    end
+end
+
+function remove_oldest_effect(self)
+    if #self.activeEffects > 0 then
+        local oldest_effect = self.activeEffects[1]
+        cleanup_specific_effect(self, oldest_effect.id)
+        print("Fireworks Spawner: Removed oldest effect to make room")
+    end
+end
+
+function get_active_effect_count(self)
+    return #self.activeEffects
 end
