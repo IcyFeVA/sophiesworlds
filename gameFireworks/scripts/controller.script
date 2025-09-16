@@ -1,0 +1,95 @@
+-- Fireworks Game Controller
+-- Handles input and triggers firework explosions
+
+local data = require "main.data"
+
+function init(self)
+    print("Fireworks game: Initializing...")
+    msg.post(".", "acquire_input_focus")
+    print("Fireworks game: Input focus acquired!")
+    
+    -- Initialize rendercam for coordinate conversion
+    self.rendercam = require "rendercam.rendercam"
+    
+    -- Track active touches for multitouch support
+    self.activeTouches = {}
+    
+    -- Track active fireworks for performance management
+    self.activeFireworks = {}
+    self.maxFireworks = 10
+    
+    print("Fireworks game: Initialization complete!")
+end
+
+function final(self)
+    msg.post(".", "release_input_focus")
+end
+
+function update(self, dt)
+    -- Update logic will be added later
+end
+
+function on_message(self, message_id, message, sender)
+    if message_id == hash("return_to_selector") then
+        print("Fireworks game: Returning to selector")
+        msg.post("main:/go#main", "return_to_selector")
+    elseif message_id == hash("input") then
+        print("Fireworks: Received forwarded input")
+        handle_input(self, message.action_id, message.action)
+    end
+end
+
+function handle_input(self, action_id, action)
+    print("Fireworks: Handling input: " .. tostring(action_id))
+    
+    -- Handle escape key to return to selector
+    if action_id == hash("key_esc") and action.pressed then
+        msg.post(".", "return_to_selector")
+        return true
+    end
+    
+    -- Handle touch input for fireworks
+    if action_id == hash("touch") or action_id == hash("multitouch") then
+        if action.pressed then
+            print("Fireworks: Touch at " .. (action.screen_x or 0) .. ", " .. (action.screen_y or 0))
+            
+            -- Store touch for multitouch tracking
+            local touch_id = action.touch_id or 1
+            self.activeTouches[touch_id] = {x = action.x, y = action.y}
+            
+            -- Create firework at touch location
+            if action.screen_x and action.screen_y then
+                create_firework(self, action)
+            end
+        elseif action.released then
+            -- Remove touch when released
+            local touch_id = action.touch_id or 1
+            self.activeTouches[touch_id] = nil
+        end
+    end
+    
+    return true
+end
+
+function on_input(self, action_id, action)
+    return handle_input(self, action_id, action)
+end
+
+function create_firework(self, action)
+    -- Convert screen position to world position
+    local worldPos = self.rendercam.screen_to_world_2d(action.screen_x, action.screen_y)
+    
+    if not worldPos then
+        return
+    end
+    
+    print("Fireworks: Creating firework at world position " .. worldPos.x .. ", " .. worldPos.y)
+    
+    -- TODO: Implement firework creation
+    -- This will be implemented in the next task
+    
+    -- Placeholder: Send message to fireworks spawner
+    msg.post("/fireworksSpawner#fireworksSpawner", "spawn_firework", {
+        position = worldPos
+    })
+end
