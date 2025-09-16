@@ -1,6 +1,8 @@
 -- Fireworks Game Controller
 -- Handles input and triggers firework explosions
 
+math.randomseed(os.time())
+
 local data = require "main.data"
 
 function init(self)
@@ -9,7 +11,7 @@ function init(self)
     print("Fireworks game: Input focus acquired!")
     
     -- Initialize rendercam for coordinate conversion
-    self.rendercam = require "rendercam.rendercam"
+    rendercam = require "rendercam.rendercam"
     
     -- Track active touches for multitouch support
     self.activeTouches = {}
@@ -18,15 +20,32 @@ function init(self)
     self.activeFireworks = {}
     self.maxFireworks = 10
     
+    -- Firework creation cooldown to prevent spam
+    self.lastFireworkTime = 0
+    self.fireworkCooldown = 0.1  -- 100ms between fireworks
+    
     print("Fireworks game: Initialization complete!")
 end
 
 function final(self)
     msg.post(".", "release_input_focus")
+    
+    -- Clean up any remaining fireworks
+    for i, firework_id in ipairs(self.activeFireworks) do
+        if go.exists(firework_id) then
+            go.delete(firework_id)
+        end
+    end
 end
 
 function update(self, dt)
-    -- Update logic will be added later
+    -- Update cooldown timer
+    if self.lastFireworkTime > 0 then
+        self.lastFireworkTime = self.lastFireworkTime - dt
+        if self.lastFireworkTime < 0 then
+            self.lastFireworkTime = 0
+        end
+    end
 end
 
 function on_message(self, message_id, message, sender)
@@ -36,12 +55,23 @@ function on_message(self, message_id, message, sender)
     elseif message_id == hash("input") then
         print("Fireworks: Received forwarded input")
         handle_input(self, message.action_id, message.action)
+    elseif message_id == hash("firework_created") then
+        -- Track new firework for cleanup
+        table.insert(self.activeFireworks, message.firework_id)
+        print("Fireworks: Tracking firework " .. tostring(message.firework_id))
+    elseif message_id == hash("firework_completed") then
+        -- Remove completed firework from tracking
+        for i, firework_id in ipairs(self.activeFireworks) do
+            if firework_id == message.firework_id then
+                table.remove(self.activeFireworks, i)
+                print("Fireworks: Removed completed firework " .. tostring(message.firework_id))
+                break
+            end
+        end
     end
 end
 
 function handle_input(self, action_id, action)
-    print("Fireworks: Handling input: " .. tostring(action_id))
-    
     -- Handle escape key to return to selector
     if action_id == hash("key_esc") and action.pressed then
         msg.post(".", "return_to_selector")
@@ -55,7 +85,7 @@ function handle_input(self, action_id, action)
             
             -- Store touch for multitouch tracking
             local touch_id = action.touch_id or 1
-            self.activeTouches[touch_id] = {x = action.x, y = action.y}
+            self.activeTouches[touch_id] = {x = action.x, y = action.y, screen_x = action.screen_x, screen_y = action.screen_y}
             
             -- Create firework at touch location
             if action.screen_x and action.screen_y then
@@ -76,20 +106,59 @@ function on_input(self, action_id, action)
 end
 
 function create_firework(self, action)
+    -- Check cooldown to prevent spam
+    if self.lastFireworkTime > 0 then
+        return
+    end
+    
+    -- Check if we've reached the maximum number of active fireworks
+    if #self.activeFireworks >= self.maxFireworks then
+        print("Fireworks: Maximum fireworks reached, skipping")
+        return
+    end
+    
+    -- Validate screen coordinates
+    if not action.screen_x or not action.screen_y then
+        print("Fireworks: Invalid screen coordinates")
+        return
+    end
+    
     -- Convert screen position to world position
-    local worldPos = self.rendercam.screen_to_world_2d(action.screen_x, action.screen_y)
+    local worldPos = rendercam.screen_to_world_2d(action.screen_x, action.screen_y)
     
     if not worldPos then
+        print("Fireworks: Failed to convert screen to world coordinates")
         return
     end
     
     print("Fireworks: Creating firework at world position " .. worldPos.x .. ", " .. worldPos.y)
     
-    -- TODO: Implement firework creation
-    -- This will be implemented in the next task
+    -- Set cooldown
+    self.lastFireworkTime = self.fireworkCooldown
     
-    -- Placeholder: Send message to fireworks spawner
+    -- Send message to fireworks spawner with position and properties
     msg.post("/fireworksSpawner#fireworksSpawner", "spawn_firework", {
-        position = worldPos
+        position = worldPos,
+        screen_position = vmath.vector3(action.screen_x, action.screen_y, 0)
     })
+    
+    -- Play sound effect immediately for responsive feedback
+    sound.play("/soundfx#firework", {
+        speed = math.random(80, 120) / 100  -- Pitch variation
+    })
+end
+
+function cleanup_old_fireworks(self)
+    -- Remove any fireworks that no longer exist
+    local active_count = 0
+    for i = #self.activeFireworks, 1, -1 do
+        local firework_id = self.activeFireworks[i]
+        if not go.exists(firework_id) then
+            table.remove(self.activeFireworks, i)
+        else
+            active_count = active_count + 1
+        end
+    end
+    
+    print("Fireworks: Active fireworks count: " .. active_count)
 end
