@@ -14,6 +14,9 @@
   - Write controller.script with input handling following existing game patterns
   - Implement screen-to-world coordinate conversion using rendercam
   - Add multitouch support with activeTouches tracking table
+
+
+
   - Create firework spawning function that triggers particle effects at touch locations
   - _Requirements: 1.1, 1.3, 3.1, 3.2_
 
