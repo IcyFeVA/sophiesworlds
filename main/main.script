@@ -39,6 +39,9 @@ function on_message(self, message_id, message, sender)
 		elseif message.game_id == "xylophone" then
 			msg.post("gameXylophoneProxy#gameXylophoneProxy", "load")
 			self.current_collection = "gameXylophone"
+		elseif message.game_id == "fireworks" then
+			msg.post("gameFireworksProxy#gameFireworksProxy", "load")
+			self.current_collection = "gameFireworks"
 		end
 	elseif message_id == hash("return_to_selector") then
 		-- Unload current game and return to selector
@@ -48,6 +51,7 @@ function on_message(self, message_id, message, sender)
 		msg.post("gameBubblesProxy#gameBubblesProxy", "unload")
 		msg.post("gameBubbleWrapProxy#gameBubbleWrapProxy", "unload")
 		msg.post("gameXylophoneProxy#gameXylophoneProxy", "unload")
+		msg.post("gameFireworksProxy#gameFireworksProxy", "unload")
 		
 		-- Load gameSelector
 		msg.post("gameSelectorProxy#gameSelectorProxy", "load")
@@ -80,6 +84,12 @@ function on_input(self, action_id, action)
 		if action_id == hash("touch") then
 			print("Main: Forwarding touch to gameXylophone")
 			msg.post("gameXylophone:/level#controller", "input", {action_id = action_id, action = action})
+		end
+	elseif self.current_collection == "gameFireworks" then
+		-- Forward input to gameFireworks
+		if action_id == hash("touch") then
+			print("Main: Forwarding touch to gameFireworks")
+			msg.post("gameFireworks:/controller#controller", "input", {action_id = action_id, action = action})
 		end
 	end
 	

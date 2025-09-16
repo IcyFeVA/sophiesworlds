@@ -7,7 +7,7 @@ dependencies#1 = https://github.com/britzl/defold-input/archive/master.zip
 dependencies#2 = https://github.com/britzl/gooey/archive/master.zip
 
 [bootstrap]
-main_collection = /gameFireworks/gameFireworks.collectionc
+main_collection = /main/main.collectionc
 render = /rendercam/rendercam.renderc
 
 [input]

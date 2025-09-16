@@ -9,7 +9,8 @@ function init(self)
     self.games = {
         {id = "bubbles", name = "Bubble Pop", color = vmath.vector4(0.3, 0.7, 1.0, 1.0)},
         {id = "bubblewrap", name = "Bubble Wrap", color = vmath.vector4(1.0, 0.4, 0.6, 1.0)},
-        {id = "xylophone", name = "Xylophone", color = vmath.vector4(0.9, 0.7, 0.2, 1.0)}
+        {id = "xylophone", name = "Xylophone", color = vmath.vector4(0.9, 0.7, 0.2, 1.0)},
+        {id = "fireworks", name = "Fireworks", color = vmath.vector4(1.0, 0.2, 0.8, 1.0)}
     }
     
     self.enabled = true

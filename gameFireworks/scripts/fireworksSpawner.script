@@ -119,13 +119,12 @@ function create_firework_effect(self, position, color)
         return nil
     end
     
-    -- Get the particle effect component and apply color
-    local particlefx_url = msg.url(firework_go, "particlefx", "fireworks")
+    print("Fireworks Spawner: Created game object " .. tostring(firework_go))
     
-    -- Set particle colors for all emitters
-    particlefx.set_constant(particlefx_url, "explosion_burst", "tint", vmath.vector4(color.r, color.g, color.b, 1.0))
-    particlefx.set_constant(particlefx_url, "sparkle_trail", "tint", vmath.vector4(color.r * 0.9, color.g * 0.9, color.b * 0.9, 1.0))
-    particlefx.set_constant(particlefx_url, "flash_effect", "tint", vmath.vector4(1.0, 1.0, 1.0, 1.0))  -- Keep flash white
+    -- Get the particle effect component
+    local particlefx_url = msg.url(nil, firework_go, "fireworks")
+    
+    print("Fireworks Spawner: Particle effect URL: " .. tostring(particlefx_url))
     
     -- Start the particle effect
     particlefx.play(particlefx_url)

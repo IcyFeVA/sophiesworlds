@@ -1,9 +1,6 @@
-embedded_components {
+components {
   id: "fireworks"
-  type: "particlefx"
-  data: "particlefx: \"/particles/fireworks.particlefx\"\n"
-  "autoplay: false\n"
-  ""
+  component: "/particles/fireworks.particlefx"
   position {
     x: 0.0
     y: 0.0
