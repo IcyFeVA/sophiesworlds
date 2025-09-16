@@ -37,18 +37,26 @@ function on_message(self, message_id, message, sender)
 	elseif message_id == hash("bubbles_list") then
 		-- Store the bubbles list for use in deleteBubble function
 		self.current_bubbles = message.bubbles
-	elseif message_id == hash("acquire_input_focus") then
-		-- Explicitly acquire input focus when requested by gameSelector
-		print("Bubbles game: Acquiring input focus on request")
-		msg.post(".", "acquire_input_focus")
-	elseif message_id == hash("release_input_focus") then
-		-- Explicitly release input focus when requested by gameSelector
-		print("Bubbles game: Releasing input focus on request")
-		msg.post(".", "release_input_focus")
+	elseif message_id == hash("return_to_selector") then
+		-- Return to game selector
+		print("Bubbles game: Returning to selector")
+		msg.post("main:/go#main", "return_to_selector")
+	elseif message_id == hash("input") then
+		-- Handle forwarded input from main
+		print("Bubbles: Received forwarded input")
+		handle_input(self, message.action_id, message.action)
 	end
 end
 
-function on_input(self, action_id, action)
+function handle_input(self, action_id, action)
+	print("Bubbles: Handling input: " .. tostring(action_id))
+	
+	-- Handle escape key to return to selector
+	if action_id == hash("key_esc") and action.pressed then
+		msg.post(".", "return_to_selector")
+		return true
+	end
+	
 	-- Handle multitouch properly
 	if action_id == hash("touch") or action_id == hash("multitouch") then
 		if action.pressed then
@@ -68,6 +76,10 @@ function on_input(self, action_id, action)
 	if action.screen_x and action.screen_y then
 		deleteBubble(self, action)
 	end
+end
+
+function on_input(self, action_id, action)
+	return handle_input(self, action_id, action)
 end
 
 function on_reload(self)

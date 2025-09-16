@@ -73,13 +73,13 @@ function on_input(self, action_id, action)
 		-- Forward input to gameBubbles
 		if action_id == hash("touch") then
 			print("Main: Forwarding touch to gameBubbles")
-			msg.post("gameBubbles:/controller#controller", "input", {action_id = action_id, action = action})
+			msg.post("gameBubbles:/level#gameBubbles", "input", {action_id = action_id, action = action})
 		end
 	elseif self.current_collection == "gameXylophone" then
 		-- Forward input to gameXylophone
 		if action_id == hash("touch") then
 			print("Main: Forwarding touch to gameXylophone")
-			msg.post("gameXylophone:/controller#controller", "input", {action_id = action_id, action = action})
+			msg.post("gameXylophone:/level#controller", "input", {action_id = action_id, action = action})
 		end
 	end
 	
